@@ -1,0 +1,8 @@
+namespace UFX.Orleans.SignalR;
+
+public class Constants
+{
+    public const string HUB_ALL_STORAGE_PROVIDER = "ORLEANS_SIGNALR_HUB_ALL_STORAGE_PROVIDER";
+    public const string HUB_GROUP_STORAGE_PROVIDER = "ORLEANS_SIGNALR_HUB_GROUP_STORAGE_PROVIDER";
+    public const string HUB_USER_STORAGE_PROVIDER = "ORLEANS_SIGNALR_HUB_USER_STORAGE_PROVIDER";
+}
