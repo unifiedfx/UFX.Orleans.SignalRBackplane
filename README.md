@@ -26,11 +26,11 @@ This library supports Orleans V7 and approaches the scale-out from a different p
 # Overview
 
 Each SignalR hub instance terminates connections locally, then for each Join/Leave Group or User Connect/Disconnect event the server gets added or removed to/from the HubGrain.
-The HubGrain maintains group/user membership of all servers the following are examples of how different kinds of messages are handled:
+The HubGrain maintains group/user membership of all servers, the following are examples of how different kinds of messages are handled:
 
-* Sending messages to all connections the requesting server obtains a list of all servers from the HubGrain and sends the message directly to each server.
-* Sending a message to a Group/User the source server retrieves a list of servers that have that Group/User and sends the message to all relevant servers directly.
-* Sending per connection level messages the hub checks to see if the connection is local and handles locally, if the connection is not on the local server then the request is sent to all other servers. Each server then checks its local connection and handles if required, otherwise the request is ignored if no local connection for the request.
+* Sending messages to all connections: The requesting server obtains a list of all servers from the HubGrain and sends the message directly to each server.
+* Sending a message to a Group/User: The source server retrieves a list of servers that have that Group/User and sends the message to all relevant servers directly.
+* Sending per connection level messages: The hub checks to see if the connection is local and handles locally, if the connection is not on the local server then the request is sent to all other servers. Each server then checks its local connection and handles if required, otherwise the request is ignored if no local connection for the request.
 
 ### ServerGrain
 
@@ -40,7 +40,7 @@ this should ensure that the server grain activations are local to the correspond
 ### HubGrain
 The HubGrain periodically calls each ServerGrain's **CheckSubscriber()** method and if there is no HubLifetimeManager subscribed the server is removed from all Group/User memberships.
 When a SignalR server instance comes online it's HubLifetimeManager subscribes to the corresponding ServerGrain on the first client connection.
-This permits servers to dynamically come online/offline as required making Scale-out ver simple allowing for increased capacity just by standing up additional servers.
+This permits servers to dynamically come online/offline as required making Scale-out very simple allowing for increased capacity just by standing up additional servers.
 This is perfectly compliments Azure App Service with only a single item requiring scaleout
 
 ### Diagram

@@ -265,17 +265,17 @@ public class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IServer
     {
         await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds);
     }
-    async Task IServerObserver.SendToAll(InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds = default)
+    async Task IServerObserver.SendToAll(InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
     {
         await SendToAllConnections(request, (connection, state) => !((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), excludedConnectionIds);
     }
-    async Task IServerObserver.SendToGroup(string group, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds = default)
+    async Task IServerObserver.SendToGroup(string group, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
     {
         if(!groups.TryGetValue(group, out var groupConnections)) return;
         if (excludedConnectionIds is not null) groupConnections = groupConnections.Except(excludedConnectionIds).ToHashSet();
         await SendToAllConnections(request, (connection, state) => ((HashSet<string>)state!).Contains(connection.ConnectionId), groupConnections);
     }
-    async Task IServerObserver.SendToUser(string user, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds = default)
+    async Task IServerObserver.SendToUser(string user, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
     {
         if(!users.TryGetValue(user, out var userConnections)) return;
         if (excludedConnectionIds is not null) userConnections = userConnections.Except(excludedConnectionIds).ToHashSet();
