@@ -1,5 +1,6 @@
 # UFX.Orleans.SignalR
 
+[![CI](https://github.com/unifiedfx/UFX.Orleans.SignalR/actions/workflows/ci.yml/badge.svg)](https://github.com/unifiedfx/UFX.Orleans.SignalR/actions/workflows/ci.yml)
 
 [Orleans](https://github.com/dotnet/orleans) is a framework that provides a straight-forward approach to building distributed high-scale computing applications,
 without the need to learn and apply complex concurrency or other scaling patterns.
