@@ -30,16 +30,16 @@ jobs:
         working-directory: src/UFX.Orleans.SignalR/bin/Release
         run: |
           dotnet nuget push UFX.Orleans.SignalR.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
-      - name: Create Release
-        uses: actions/github-script@v5
-        with:
-          script: |
-            github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: context.ref,              
-              name: context.ref,
-              draft: false,
-              prerelease: false,
-              generate_release_notes: true
-            })
+#      - name: Create Release
+#        uses: actions/github-script@v5
+#        with:
+#          script: |
+#            github.rest.repos.createRelease({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              tag_name: context.ref,              
+#              name: context.ref,
+#              draft: false,
+#              prerelease: false,
+#              generate_release_notes: true
+#            })
