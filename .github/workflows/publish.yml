@@ -24,7 +24,7 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
       - name: Pack
-        working-directory: src/SignalR.Orleans
+        working-directory: src/UFX.Orleans.SignalR
         run: dotnet pack --configuration Release --no-build -p:Version=${GITHUB_REF##*/v}
       - name: Push
         working-directory: src/UFX.Orleans.SignalR/bin/Release
