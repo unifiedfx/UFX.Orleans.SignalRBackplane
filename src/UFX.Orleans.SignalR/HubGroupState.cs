@@ -2,39 +2,69 @@ using System.Collections.Concurrent;
 
 namespace UFX.Orleans.SignalR;
 
-[Serializable]
+// [Serializable]
 public class HubGroupState
 {
-    public ConcurrentDictionary<string, HashSet<string>> Servers { get; set; } = new();
-    public List<string> GetServers(string item) =>
-        Servers.TryGetValue(item, out var servers) ? servers.ToList() : new List<string>();
-    public void AddServer(string server, string item)
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> locks = new ();
+    private readonly ConcurrentDictionary<string, HashSet<string>> state = new();
+    public IReadOnlyList<string> GetServers(string item) =>
+        state.TryGetValue(item, out var servers) ? servers.ToList() : new List<string>();
+
+    public async ValueTask AddServerAsync(string server, string item)
     {
-        var servers = Servers.GetOrAdd(item, _ => new());
-        lock (servers) servers.Add(server);
+        var @lock = GetLock(server);
+        await @lock.WaitAsync();
+        var servers = state.GetOrAdd(item, _ => new());
+        servers.Add(server);
+        @lock.Release();
     }
-    public bool RemoveServer(string server)
+    public async ValueTask RemoveServerAsync(string server)
     {
-        var removed = false;
-        foreach (var user in Servers.ToList())
+        var @lock = GetLock(server);
+        await @lock.WaitAsync();
+        foreach (var item in state.ToList())
         {
-            lock (user.Value)
-            {
-                removed |= user.Value.Remove(server);
-                if(!user.Value.Any()) Servers.TryRemove(user.Key, out _);
-            }
+            item.Value.Remove(server);
+            if(!item.Value.Any()) state.TryRemove(item.Key, out _);
         }
-        return removed;
+        @lock.Release();
     }
-    public bool RemoveServer(string server, string item)
+    // public async ValueTask<HashSet<string>> GetServerItems(string server)
+    // {
+    //     var @lock = GetLock(server);
+    //     var result = new HashSet<string>();
+    //     await @lock.WaitAsync();
+    //     foreach (var item in state.ToList())
+    //     {
+    //         if(!item.Value.Contains(server)) continue;
+    //         result.Add(item.Key);
+    //     }
+    //     @lock.Release();
+    //     return result;
+    // }
+    public async ValueTask RemoveServerAsync(string server, string item)
     {
-        if(!Servers.TryRemove(item, out var servers)) return false;
-        lock (servers)
+        var @lock = GetLock(server);
+        await @lock.WaitAsync();
+        try
         {
-            if(!servers.Remove(server)) return false;
-            if(servers.Any()) return true;
-            Servers.TryRemove(item, out _);
-            return true;
+            if(!state.TryRemove(item, out var servers)) return;
+            if(!servers.Remove(server)) return;
+            if(servers.Any()) return;
+            state.TryRemove(item, out _);
+        }
+        finally
+        {
+            @lock.Release();
         }
     }
+    
+    public async ValueTask SetStateAsync(string server, HashSet<string> items)
+    {
+        var @lock = GetLock(server);
+        await @lock.WaitAsync();
+        foreach (var item in items) state.GetOrAdd(item, _ => new()).Add(server);
+        @lock.Release();
+    }
+    private SemaphoreSlim GetLock(string server) => locks.GetOrAdd(server, _ => new SemaphoreSlim(1,1));
 }

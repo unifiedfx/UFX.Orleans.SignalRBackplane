@@ -12,7 +12,7 @@ public static class SiloHostBuilderExtensions
     {
         var cfg = new SignalrOrleansConfig();
         configure?.Invoke(cfg);
-
+        builder.Services.AddSingleton<IServerStateProvider, ServerStateProvider>();
         builder.Services.AddSerializer(serializerBuilder =>
         {
             serializerBuilder.AddNewtonsoftJsonSerializer(isSupported: cfg.NewtonsoftJsonSerializer);
