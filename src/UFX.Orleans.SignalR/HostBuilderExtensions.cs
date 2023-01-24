@@ -1,41 +1,34 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
-using Orleans.Serialization;
-using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR;
 
 public static class SiloHostBuilderExtensions
 {
-    public static ISiloBuilder UseSignalR(this ISiloBuilder builder,
-        Action<SignalrOrleansConfig>? configure = null)
+    public static ISiloBuilder UseSignalR(this ISiloBuilder siloBuilder, Action<SignalrOrleansOptions>? optionsAction = null)
     {
-        var cfg = new SignalrOrleansConfig();
-        configure?.Invoke(cfg);
+        var services = siloBuilder.Services;
 
-        builder.Services.AddSerializer(serializerBuilder =>
+        if (optionsAction is not null)
         {
-            serializerBuilder.AddNewtonsoftJsonSerializer(isSupported: cfg.NewtonsoftJsonSerializer);
-        });
-        try
-        {
-            builder.AddMemoryGrainStorageAsDefault();
+            services.Configure(optionsAction);
         }
-        catch
-        {
-            /** Grain storage provider was already added. Do nothing. **/
-        }
-        if(string.IsNullOrWhiteSpace(cfg.ServerId))
-            builder.Services.AddSingleton<IHubServerIdProvider, HubServerIdProvider>();
         else
-            builder.Services.AddSingleton<IHubServerIdProvider>(new HubServerIdProvider(cfg.ServerId));
-        builder.Services.AddSingleton(typeof(HubLifetimeManager<>), typeof(OrleansHubLifetimeManager<>));
-        return builder;
-    }
-}
+        {
+            services.ConfigureOptions<SignalrOrleansOptions>();
+        }
 
-public class SignalrOrleansConfig
-{
-    public Func<Type, bool> NewtonsoftJsonSerializer { get; set; } = _ => true;
-    public string? ServerId { get; set; }
+        services.AddSingleton(typeof(HubLifetimeManager<>), typeof(OrleansHubLifetimeManager<>));
+
+        siloBuilder.AddReminders();
+
+        // If reminder persistence has not yet been registered, add the in-memory provider
+        if (services.All(x => x.ServiceType != typeof(IReminderTable)))
+        {
+            siloBuilder
+                .UseInMemoryReminderService();
+        }
+
+        return siloBuilder;
+    }
 }

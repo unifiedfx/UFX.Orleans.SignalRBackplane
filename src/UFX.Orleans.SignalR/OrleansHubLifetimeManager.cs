@@ -1,296 +1,171 @@
 using System.Collections.Concurrent;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using UFX.Orleans.SignalR.Abstractions;
+using UFX.Orleans.SignalR.Grains;
 
 namespace UFX.Orleans.SignalR;
 
-public class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IServerObserver where THub : Hub
+internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IHubLifetimeManagerGrainObserver, IAsyncDisposable where THub : Hub
 {
-    private readonly HubConnectionStore connections = new();
-    private readonly ConcurrentDictionary<string, HashSet<string>> groups = new();
-    private readonly ConcurrentDictionary<string, HashSet<string>> users = new();
-    private readonly IClusterClient client;
-    private readonly ILogger<OrleansHubLifetimeManager<THub>> logger;
-    private readonly string hubName;
-    private readonly string serverId;
-    private IHubGrain? hubGrain;
-    private bool subscribed;
+    private readonly IGrainFactory _grainFactory;
+    private readonly DefaultHubLifetimeManager<THub> _hubManager;
+    private readonly IHubGrain _hubGrain;
 
-    public OrleansHubLifetimeManager(IClusterClient client, IHubServerIdProvider hubServerIdProvider, ILogger<OrleansHubLifetimeManager<THub>> logger)
+    private readonly ConcurrentDictionary<string, (string? UserIdentifier, string[] GroupNames)> _trackedConnections = new();
+
+    public OrleansHubLifetimeManager(IGrainFactory grainFactory, ILogger<DefaultHubLifetimeManager<THub>> logger)
     {
-        var hubType = typeof(THub).BaseType?.GenericTypeArguments.FirstOrDefault() ?? typeof(THub);
-        var name = hubType.Name.AsSpan();
-        hubName = hubType.IsInterface && name[0] == 'I'
-            ? new string(name[1..])
-            : hubType.Name;
-        this.client = client;
-        this.logger = logger;
-        serverId = hubServerIdProvider.GetServerId(hubName);
+        _grainFactory = grainFactory;
+        _hubManager = new DefaultHubLifetimeManager<THub>(logger);
+
+        _hubGrain = _grainFactory.GetGrain<IHubGrain>(typeof(THub).FullName);
     }
-    private IHubGrain GetHubGrain() => hubGrain ??= client.GetGrain<IHubGrain>(hubName);
-    private IServerGrain GetServer(string server) => client.GetGrain<IServerGrain>(server);
-    private IEnumerable<IServerGrain> GetServers(IEnumerable<string> servers) =>
-        servers.Except(new[] {serverId}).Select(GetServer).ToList();
-    private async Task SubscribeToServer()
-    {
-        var server = GetServer(serverId);
-        subscribed = await server.CheckSubscriber();
-        logger.LogInformation("CheckSubscriber: {Subscribed}", subscribed);
-        if(subscribed) return;
-        await GetServer(serverId).Subscribe(client.CreateObjectReference<IServerObserver>(this));
-        subscribed = await server.CheckSubscriber();
-        logger.LogInformation("CheckSubscriber: {Subscribed}", subscribed);
-    }
-    private async Task EnsureServerSubscription()
-    {
-        if(subscribed) return;
-        await SubscribeToServer();
-        await GetHubGrain().AddServer(serverId);
-    }
+
     public override async Task OnConnectedAsync(HubConnectionContext connection)
     {
-        await EnsureServerSubscription();
-        connection.Features.Set<ISignalRGroupFeature>(new SignalRGroupFeature());
-        connections.Add(connection);
-        if (!string.IsNullOrEmpty(connection.UserIdentifier))
+        await EnsureObserverAsync();
+
+        _trackedConnections.TryAdd(connection.ConnectionId, (connection.UserIdentifier, Array.Empty<string>()));
+
+        await _grainFactory
+            .GetGrain<IConnectionGrain>(connection.ConnectionId)
+            .SubscribeAsync(_observer!);
+
+        if (connection.UserIdentifier is not null)
         {
-            var store = users.GetOrAdd(connection.UserIdentifier, _ => new ());
-            store.Add(connection.ConnectionId);
-            await GetHubGrain().AddServerToUser(serverId, connection.UserIdentifier);
+            await _grainFactory
+                .GetGrain<IUserGrain>(connection.UserIdentifier)
+                .SubscribeAsync(_observer!);
         }
+
+        await _hubManager.OnConnectedAsync(connection);
     }
+
     public override async Task OnDisconnectedAsync(HubConnectionContext connection)
     {
-        connections.Remove(connection);
-        var tasks = new List<Task>();
-        var feature = connection.Features.GetRequiredFeature<ISignalRGroupFeature>();
-        var groupNames = feature.Groups;
-        foreach (var group in groupNames.ToArray())
+        _trackedConnections.Remove(connection.ConnectionId, out var removedConnection);
+
+        // If this was the last connection for the user on this hub, unsubscribe from the user grain
+        if (connection.UserIdentifier is not null && _trackedConnections.All(conn => conn.Value.UserIdentifier != removedConnection.UserIdentifier))
         {
-            tasks.Add(RemoveGroupAsyncCore(connection, group));
+            await _grainFactory
+                .GetGrain<IUserGrain>(removedConnection.UserIdentifier)
+                .UnsubscribeAsync(_observer!);
         }
-        tasks.Add(RemoveUserAsyncCore(connection));
-        await Task.WhenAll(tasks);
-    }
-    private async Task RemoveUserAsyncCore(HubConnectionContext connection)
-    {
-        if(string.IsNullOrEmpty(connection.UserIdentifier)) return;
-        if(!users.TryGetValue(connection.UserIdentifier, out var store)) return;
-        store.Remove(connection.ConnectionId);
-        if(store.Count > 0) return;
-        if(!users.TryRemove(connection.UserIdentifier, out _)) return;
-        await GetHubGrain().RemoveServerFromUser(serverId, connection.UserIdentifier);
-    }
-    public override async Task AddToGroupAsync(string connectionId, string groupName,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        if (connectionId == null) throw new ArgumentNullException(nameof(connectionId));
-        if (groupName == null) throw new ArgumentNullException(nameof(groupName));
-        var connection = connections[connectionId];
-        if (connection != null) await AddGroupAsyncCore(connection, groupName);
-        else
-        {
-            var servers = GetServers(await GetHubGrain().GetAllServers());
-            var tasks = servers.Select(s => s.AddConnectionToGroup(connectionId, groupName));
-            await Task.WhenAll(tasks);
-        }
-    }
-    private async Task AddGroupAsyncCore(HubConnectionContext connection, string groupName)
-    {
-        var feature = connection.Features.GetRequiredFeature<ISignalRGroupFeature>();
-        var groupNames = feature.Groups;
-        lock (groupNames)
-        {
-            if (!groupNames.Add(groupName)) return;
-        }
-        var store = groups.GetOrAdd(groupName, _ => new ());
-        store.Add(connection.ConnectionId);
-        await GetHubGrain().AddServerToGroup(serverId, groupName);
-    }
-    public override async Task RemoveFromGroupAsync(string connectionId, string groupName,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        if (connectionId == null) throw new ArgumentNullException(nameof(connectionId));
-        if (groupName == null) throw new ArgumentNullException(nameof(groupName));
-        var connection = connections[connectionId];
-        if (connection != null) await RemoveGroupAsyncCore(connection, groupName);
-        else
-        {
-            var servers = GetServers(await GetHubGrain().GetAllServers());
-            var tasks = servers.Select(s => s.RemoveConnectionFromGroup(connectionId, groupName));
-            await Task.WhenAll(tasks);
-        }
-    }
-    private async Task RemoveGroupAsyncCore(HubConnectionContext connection, string groupName)
-    {
-        var feature = connection.Features.GetRequiredFeature<ISignalRGroupFeature>();
-        var groupNames = feature.Groups;
-        lock (groupNames)
-        {
-            groupNames.Remove(groupName);
-        }
-        if(!groups.TryGetValue(groupName, out var store)) return;
-        store.Remove(connection.ConnectionId);
-        if(store.Count > 0) return;
-        if(!groups.TryRemove(groupName, out _)) return;
-        await GetHubGrain().RemoveServerFromGroup(serverId, groupName);
-    }
-    public override async Task SendAllAsync(string methodName, object?[] args, CancellationToken cancellationToken = new CancellationToken())
-    {
-        var request = new InvocationRequest(methodName, args);
-        await SendToAllConnections(request, null, null, cancellationToken);
-        var servers = GetServers(await GetHubGrain().GetAllServers());
-        var tasks = servers.Select(s => s.SendToAll(request));
-        await Task.WhenAll(tasks);
+
+        // If this was the last connection for this group on this hub, unsubscribe from the group grain 
+        var groupUnsubTasks = removedConnection.GroupNames.Select(
+            groupName =>
+                _trackedConnections.All(conn => !conn.Value.GroupNames.Contains(groupName))
+                    ? _grainFactory.GetGrain<IGroupGrain>(groupName).UnsubscribeAsync(_observer!)
+                    : Task.CompletedTask
+        );
+        await Task.WhenAll(groupUnsubTasks);
+
+        await _grainFactory
+            .GetGrain<IConnectionGrain>(connection.ConnectionId)
+            .UnsubscribeAsync(_observer!);
+
+        await _hubManager.OnDisconnectedAsync(connection);
     }
 
-    public override async Task SendAllExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds,
-        CancellationToken cancellationToken = new CancellationToken())
+    public override async Task AddToGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default)
     {
-        var request = new InvocationRequest(methodName, args);
-        await SendToAllConnections(request, (connection, state) => !((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), excludedConnectionIds, cancellationToken);
-        var servers = GetServers(await GetHubGrain().GetAllServers());
-        var tasks = servers.Select(s => s.SendToAll(request, excludedConnectionIds));
-        await Task.WhenAll(tasks);
+        var updated = false;
+        var remainingAttempts = 5;
+
+        do
+        {
+            if (_trackedConnections.TryGetValue(connectionId, out var existingEntry))
+            {
+                if (existingEntry.GroupNames.Contains(groupName))
+                {
+                    break;
+                }
+
+                updated = _trackedConnections.TryUpdate(
+                    connectionId,
+                    (existingEntry.UserIdentifier, existingEntry.GroupNames.Append(groupName).ToArray()),
+                    existingEntry
+                );
+            }
+        } while (!updated && remainingAttempts-- > 0);
+
+        var group = _grainFactory.GetGrain<IGroupGrain>(groupName);
+
+        await group.SubscribeAsync(_observer!);
+
+        await group.AddToGroupAsync(connectionId);
     }
 
-    public override async Task SendConnectionAsync(string connectionId, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
+    public override async Task RemoveFromGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default)
     {
-        var request = new InvocationRequest(methodName, args);
-        if (connections[connectionId] is not null)
+        var updated = false;
+        var remainingAttempts = 5;
+
+        do
         {
-            await SendToAllConnections(request, (connection, state) => ((string)state!).Equals(connection.ConnectionId), connectionId, cancellationToken);
-        }
-        else
-        {
-            var servers = GetServers(await GetHubGrain().GetAllServers());
-            var tasks = servers.Select(s => s.SendToConnections(request, new[] {connectionId}));
-            await Task.WhenAll(tasks);
-        }
-    }
-    public override async Task SendConnectionsAsync(IReadOnlyList<string> connectionIds, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        var request = new InvocationRequest(methodName, args);
-        await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds, cancellationToken);
-        var servers = GetServers(await GetHubGrain().GetAllServers());
-        var tasks = servers.Select(s => s.SendToConnections(request, connectionIds));
-        await Task.WhenAll(tasks);
-    }
-    public override async Task SendGroupAsync(string groupName, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        var request = new InvocationRequest(methodName, args);
-        if (groups.TryGetValue(groupName, out var list))
-        {
-            var connectionIds = list.ToList();
-            await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds, cancellationToken);
-        }
-        var servers = GetServers(await GetHubGrain().GetGroupServers(groupName));
-        var tasks = servers.Select(s => s.SendToGroup(groupName, request));
-        await Task.WhenAll(tasks);
-    }
-    public override async Task SendGroupsAsync(IReadOnlyList<string> groupNames, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        foreach (var groupName in groupNames)
-        {
-            if (string.IsNullOrEmpty(groupName)) throw new InvalidOperationException("Cannot send to an empty group name.");
-            await SendGroupAsync(groupName, methodName, args, cancellationToken);
-        }
-    }
-    public override async Task SendGroupExceptAsync(string groupName, string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        var request = new InvocationRequest(methodName, args);
-        if (groups.TryGetValue(groupName, out var store) && store.Any())
-        {
-            var connectionIds = store.ToList().RemoveAll(excludedConnectionIds.Contains);
-            await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds, cancellationToken);
-        }
-        var servers = GetServers(await GetHubGrain().GetGroupServers(groupName));
-        var tasks = servers.Select(s => s.SendToGroup(groupName, request, excludedConnectionIds));
-        await Task.WhenAll(tasks);
-    }
-    public override async Task SendUserAsync(string userId, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        var request = new InvocationRequest(methodName, args);
-        if (users.TryGetValue(userId, out var store) && store.Any())
-        {
-            var connectionIds = store.ToList();
-            await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds, cancellationToken);
-        }
-        var servers = GetServers(await GetHubGrain().GetUserServers(userId));
-        var tasks = servers.Select(s => s.SendToUser(userId, request));
-        await Task.WhenAll(tasks);
-    }
-    public override async Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args,
-        CancellationToken cancellationToken = new CancellationToken())
-    {
-        foreach (var userName in userIds)
-        {
-            if (string.IsNullOrEmpty(userName)) throw new InvalidOperationException("Cannot send to an empty user name.");
-            await SendUserAsync(userName, methodName, args, cancellationToken);
-        }
-    }
-    private Task SendToAllConnections(InvocationRequest request, Func<HubConnectionContext, object?, bool>? include, object? state = null, CancellationToken cancellationToken = default)
-    {
-        List<Task>? tasks = null;
-        // foreach over HubConnectionStore avoids allocating an enumerator
-        foreach (var connection in connections)
-        {
-            if (include != null && state != null && !include(connection, state)) continue;
-            var task = connection.WriteAsync(request.ToMessage(), cancellationToken);
-            if (!task.IsCompletedSuccessfully)
+            if (_trackedConnections.TryGetValue(connectionId, out var existingEntry))
             {
-                tasks ??= new List<Task>();
-                tasks.Add(task.AsTask());
+                updated = _trackedConnections.TryUpdate(
+                    connectionId,
+                    (existingEntry.UserIdentifier, existingEntry.GroupNames.Where(name => name != groupName).ToArray()),
+                    existingEntry
+                );
             }
-            else
-            {
-                // If it's a IValueTaskSource backed ValueTask,
-                // inform it its result has been read so it can reset
-                task.GetAwaiter().GetResult();
-            }
+        } while (!updated && remainingAttempts-- > 0);
+
+        var groupGrain = _grainFactory.GetGrain<IGroupGrain>(groupName);
+
+        await groupGrain.RemoveFromGroupAsync(connectionId);
+
+        // If this was the last connection for this group on this hub, unsubscribe from the group grain 
+        if (_trackedConnections.All(conn => !conn.Value.GroupNames.Contains(groupName)))
+        {
+            await groupGrain.UnsubscribeAsync(_observer!);
         }
-        if (tasks == null) return Task.CompletedTask;
-        // Some connections are slow
-        return Task.WhenAll(tasks);
     }
-    async Task IServerObserver.SendToConnections(InvocationRequest request, IReadOnlyList<string>? connectionIds)
+
+    public override Task SendAllAsync(string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => _hubGrain.SendAllAsync(methodName, args);
+
+    public override Task SendAllExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
+        => _hubGrain.SendAllExceptAsync(methodName, args, excludedConnectionIds);
+
+    public override Task SendConnectionAsync(string connectionId, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => _grainFactory
+            .GetGrain<IConnectionGrain>(connectionId)
+            .SendConnectionAsync(methodName, args);
+
+    public override Task SendConnectionsAsync(IReadOnlyList<string> connectionIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => Task.WhenAll(connectionIds.Select(connectionId => SendConnectionAsync(connectionId, methodName, args, cancellationToken)));
+
+    public override Task SendGroupAsync(string groupName, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => _grainFactory
+            .GetGrain<IGroupGrain>(groupName)
+            .SendGroupAsync(methodName, args);
+
+    public override Task SendGroupExceptAsync(string groupName, string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
+        => _grainFactory
+            .GetGrain<IGroupGrain>(groupName)
+            .SendGroupExceptAsync(methodName, args, excludedConnectionIds);
+
+    public override Task SendGroupsAsync(IReadOnlyList<string> groupNames, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => Task.WhenAll(groupNames.Select(groupName => SendGroupAsync(groupName, methodName, args, cancellationToken)));
+
+    public override Task SendUserAsync(string userId, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => _grainFactory
+            .GetGrain<IUserGrain>(userId)
+            .SendUserAsync(methodName, args);
+
+    public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        => Task.WhenAll(userIds.Select(userId => SendUserAsync(userId, methodName, args, cancellationToken)));
+
+    public async ValueTask DisposeAsync()
     {
-        await SendToAllConnections(request, (connection, state) => ((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), connectionIds);
-    }
-    async Task IServerObserver.SendToAll(InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
-    {
-        await SendToAllConnections(request, (connection, state) => !((IReadOnlyList<string>)state!).Contains(connection.ConnectionId), excludedConnectionIds);
-    }
-    async Task IServerObserver.SendToGroup(string group, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
-    {
-        if(!groups.TryGetValue(group, out var groupConnections)) return;
-        if (excludedConnectionIds is not null) groupConnections = groupConnections.Except(excludedConnectionIds).ToHashSet();
-        await SendToAllConnections(request, (connection, state) => ((HashSet<string>)state!).Contains(connection.ConnectionId), groupConnections);
-    }
-    async Task IServerObserver.SendToUser(string user, InvocationRequest request, IReadOnlyList<string>? excludedConnectionIds)
-    {
-        if(!users.TryGetValue(user, out var userConnections)) return;
-        if (excludedConnectionIds is not null) userConnections = userConnections.Except(excludedConnectionIds).ToHashSet();
-        await SendToAllConnections(request, (connection, state) => ((HashSet<string>)state!).Contains(connection.ConnectionId), userConnections);
-    }
-    async Task IServerObserver.AddConnectionToGroup(string connectionId, string group)
-    {
-        var connection = connections[connectionId];
-        if(connection == null) return;
-        await AddGroupAsyncCore(connection, group);
-    }
-    async Task IServerObserver.RemoveConnectionFromGroup(string connectionId, string group)
-    {
-        var connection = connections[connectionId];
-        if(connection == null) return;
-        await RemoveGroupAsyncCore(connection, group);
+        if (_observer is not null)
+        {
+            await _hubGrain.UnsubscribeAsync(_observer);
+        }
     }
 }

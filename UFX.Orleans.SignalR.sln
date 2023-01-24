@@ -1,6 +1,11 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UFX.Orleans.SignalR", "src\UFX.Orleans.SignalR\UFX.Orleans.SignalR.csproj", "{00D0C4FC-BE19-45C6-9441-49BF648866C2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9FD56069-7348-49DE-9A85-47C6F3382405}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
