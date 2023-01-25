@@ -23,6 +23,8 @@
         <NoWarn>$(NoWarn);1701;1702;1705;1591</NoWarn>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
         <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <PropertyGroup>

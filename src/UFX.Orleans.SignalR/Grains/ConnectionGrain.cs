@@ -13,8 +13,7 @@ internal interface IConnectionGrain : ISignalrGrain
 internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain
 {
     public ConnectionGrain(
-        [PersistentState(Constants.StateName, Constants.StorageName)]
-        IPersistentState<SubscriptionState> persistedSubs,
+        [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
         IOptions<SignalrOrleansOptions> options
     )
         : base(persistedSubs, options)
