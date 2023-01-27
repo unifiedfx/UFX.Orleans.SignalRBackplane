@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 
-var firstArg = args.FirstOrDefault();
-var connectionCount = String.IsNullOrWhiteSpace(firstArg) ? 1 : Convert.ToInt32(firstArg);
+var portArg = args.First();
+var port = Convert.ToInt32(portArg);
+
+var connectionCountArg = args.LastOrDefault();
+var connectionCount = String.IsNullOrWhiteSpace(connectionCountArg) ? 1 : Convert.ToInt32(connectionCountArg);
+
 
 var connectionTasks = Enumerable.Range(0, connectionCount).Select(_ => StartConnection());
 var connections = await Task.WhenAll(connectionTasks);
@@ -15,10 +19,10 @@ while (true)
     await connections[0].InvokeAsync("SendToServer", message);
 }
 
-static async Task<HubConnection> StartConnection()
+async Task<HubConnection> StartConnection()
 {
     var connection = new HubConnectionBuilder()
-        .WithUrl("https://localhost:7181/chat")
+        .WithUrl($"https://localhost:{port}/chat")
         .WithAutomaticReconnect()
         .ConfigureLogging(logging =>
         {
