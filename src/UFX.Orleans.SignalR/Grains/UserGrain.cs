@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans.Runtime;
 
 namespace UFX.Orleans.SignalR.Grains;
@@ -12,8 +13,9 @@ internal class UserGrain : SignalrBaseGrain, IUserGrain
 {
     public UserGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
-        IOptions<SignalrOrleansOptions> options)
-        : base(persistedSubs, options)
+        IOptions<SignalrOrleansOptions> options,
+        ILogger<UserGrain> logger)
+        : base(persistedSubs, options, logger)
     {
     }
 

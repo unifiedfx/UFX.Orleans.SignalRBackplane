@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans.Runtime;
 
 namespace UFX.Orleans.SignalR.Grains;
@@ -14,13 +15,14 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain
 {
     public ConnectionGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
-        IOptions<SignalrOrleansOptions> options
+        IOptions<SignalrOrleansOptions> options,
+        ILogger<ConnectionGrain> logger
     )
-        : base(persistedSubs, options)
+        : base(persistedSubs, options, logger)
     {
     }
 
-    public Task SendConnectionAsync(string methodName, object?[] args)
+    public Task SendConnectionAsync(string methodName, object?[] args) 
         => InformObserversAsync(observer => observer.SendConnectionAsync(this.GetPrimaryKeyString(), methodName, args));
 
     public Task AddToGroupAsync(string groupName)

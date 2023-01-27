@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using System.Diagnostics;
 
 namespace UFX.Orleans.SignalR.Grains;
 
@@ -9,17 +11,19 @@ internal interface ISignalrGrain : IGrainWithStringKey
     Task UnsubscribeAsync(IHubLifetimeManagerGrainObserver observer);
 }
 
-internal abstract class SignalrBaseGrain : Grain<SubscriptionState>, ISignalrGrain, IRemindable
+internal abstract class SignalrBaseGrain : Grain<SubscriptionState>, ISignalrGrain, IRemindable, IIncomingGrainCallFilter
 {
     private const string PingReminderName = nameof(PingReminderName);
 
     private readonly IPersistentState<SubscriptionState> _persistedSubs;
+    private readonly ILogger<SignalrBaseGrain> _logger;
     private readonly TimeSpan _grainCleanupPeriod;
     private HashSet<IHubLifetimeManagerGrainObserver> _observers = new();
 
-    protected SignalrBaseGrain(IPersistentState<SubscriptionState> persistedSubs, IOptions<SignalrOrleansOptions> options)
+    protected SignalrBaseGrain(IPersistentState<SubscriptionState> persistedSubs, IOptions<SignalrOrleansOptions> options, ILogger<SignalrBaseGrain> logger)
     {
         _persistedSubs = persistedSubs;
+        _logger = logger;
         _grainCleanupPeriod = options.Value.GrainCleanupPeriod;
     }
 
@@ -106,6 +110,16 @@ internal abstract class SignalrBaseGrain : Grain<SubscriptionState>, ISignalrGra
             _persistedSubs.State.Observers = _observers;
             await _persistedSubs.WriteStateAsync();
         }
+    }
+
+    public Task Invoke(IIncomingGrainCallContext context)
+    {
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("Method {MethodName} called on grain {Grain}", context.ImplementationMethod.Name, context.TargetContext.Address);
+        }
+
+        return context.Invoke();
     }
 }
 

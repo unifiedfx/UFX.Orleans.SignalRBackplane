@@ -1,12 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 
-var portArg = args.First();
-var port = Convert.ToInt32(portArg);
-
-var connectionCountArg = args.LastOrDefault();
-var connectionCount = String.IsNullOrWhiteSpace(connectionCountArg) ? 1 : Convert.ToInt32(connectionCountArg);
-
+var port = Convert.ToInt32(args[0]);
+var connectionCount = args.Length == 2 ? Convert.ToInt32(args[1]) : 1;
 
 var connectionTasks = Enumerable.Range(0, connectionCount).Select(_ => StartConnection());
 var connections = await Task.WhenAll(connectionTasks);
