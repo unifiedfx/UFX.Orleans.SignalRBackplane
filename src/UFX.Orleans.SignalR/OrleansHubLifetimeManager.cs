@@ -1,11 +1,12 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UFX.Orleans.SignalR.Grains;
 
 namespace UFX.Orleans.SignalR;
 
-internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IHubLifetimeManagerGrainObserver, IAsyncDisposable where THub : Hub
+internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IHubLifetimeManagerGrainObserver where THub : Hub
 {
     private readonly IGrainFactory _grainFactory;
     private readonly DefaultHubLifetimeManager<THub> _hubManager;
@@ -13,12 +14,14 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
 
     private readonly ConcurrentDictionary<string, (string? UserIdentifier, string[] GroupNames)> _trackedConnections = new();
 
-    public OrleansHubLifetimeManager(IGrainFactory grainFactory, ILogger<DefaultHubLifetimeManager<THub>> logger)
+    public OrleansHubLifetimeManager(IGrainFactory grainFactory, ILogger<DefaultHubLifetimeManager<THub>> logger, IHostApplicationLifetime hostLifetime)
     {
         _grainFactory = grainFactory;
         _hubManager = new DefaultHubLifetimeManager<THub>(logger);
 
         _hubGrain = _grainFactory.GetGrain<IHubGrain>(typeof(THub).FullName);
+
+        hostLifetime.ApplicationStopping.Register(OnApplicationStopping);
     }
 
     public override async Task OnConnectedAsync(HubConnectionContext connection)
@@ -161,11 +164,18 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
     public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
         => Task.WhenAll(userIds.Select(userId => SendUserAsync(userId, methodName, args, cancellationToken)));
 
-    public async ValueTask DisposeAsync()
+    private void OnApplicationStopping()
     {
         if (_observer is not null)
         {
-            await _hubGrain.UnsubscribeAsync(_observer);
+            try
+            {
+                _hubGrain.UnsubscribeAsync(_observer).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // We tried our best to cleanup gracefully, this will be cleaned up by the grain reminder later
+            }
         }
     }
 }
