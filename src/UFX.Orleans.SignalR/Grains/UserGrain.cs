@@ -20,5 +20,5 @@ internal class UserGrain : SignalrBaseGrain, IUserGrain
     }
 
     public Task SendUserAsync(string methodName, object?[] args) 
-        => InformObserversAsync(observer => observer.SendUserAsync(this.GetPrimaryKeyString(), methodName, args));
+        => InformObserversAsync(observer => observer.SendUserAsync(EntityId, methodName, args));
 }

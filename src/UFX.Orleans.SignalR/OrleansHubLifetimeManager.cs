@@ -8,6 +8,8 @@ namespace UFX.Orleans.SignalR;
 
 internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub>, IHubLifetimeManagerGrainObserver where THub : Hub
 {
+    private static readonly string HubName = typeof(THub).FullName!.ToLower();
+
     private readonly IGrainFactory _grainFactory;
     private readonly DefaultHubLifetimeManager<THub> _hubManager;
     private readonly IHubGrain _hubGrain;
@@ -19,7 +21,7 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         _grainFactory = grainFactory;
         _hubManager = new DefaultHubLifetimeManager<THub>(logger);
 
-        _hubGrain = _grainFactory.GetGrain<IHubGrain>(typeof(THub).FullName);
+        _hubGrain = _grainFactory.GetGrain<IHubGrain>(HubName);
 
         hostLifetime.ApplicationStopping.Register(OnApplicationStopping);
     }
@@ -30,14 +32,12 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
 
         _trackedConnections.TryAdd(connection.ConnectionId, (connection.UserIdentifier, Array.Empty<string>()));
 
-        await _grainFactory
-            .GetGrain<IConnectionGrain>(connection.ConnectionId)
+        await GetConnectionGrain(connection.ConnectionId)
             .SubscribeAsync(_observer!);
 
         if (connection.UserIdentifier is not null)
         {
-            await _grainFactory
-                .GetGrain<IUserGrain>(connection.UserIdentifier)
+            await GetUserGrain(connection.UserIdentifier)
                 .SubscribeAsync(_observer!);
         }
 
@@ -49,10 +49,9 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         _trackedConnections.Remove(connection.ConnectionId, out var removedConnection);
 
         // If this was the last connection for the user on this hub, unsubscribe from the user grain
-        if (connection.UserIdentifier is not null && _trackedConnections.All(conn => conn.Value.UserIdentifier != removedConnection.UserIdentifier))
+        if (connection.UserIdentifier is not null && _trackedConnections.All(conn => conn.Value.UserIdentifier != connection.UserIdentifier))
         {
-            await _grainFactory
-                .GetGrain<IUserGrain>(removedConnection.UserIdentifier)
+            await GetUserGrain(connection.UserIdentifier)
                 .UnsubscribeAsync(_observer!);
         }
 
@@ -60,13 +59,12 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         var groupUnsubTasks = removedConnection.GroupNames.Select(
             groupName =>
                 _trackedConnections.All(conn => !conn.Value.GroupNames.Contains(groupName))
-                    ? _grainFactory.GetGrain<IGroupGrain>(groupName).UnsubscribeAsync(_observer!)
+                    ? GetGroupGrain(groupName).UnsubscribeAsync(_observer!)
                     : Task.CompletedTask
         );
         await Task.WhenAll(groupUnsubTasks);
 
-        await _grainFactory
-            .GetGrain<IConnectionGrain>(connection.ConnectionId)
+        await GetConnectionGrain(connection.ConnectionId)
             .UnsubscribeAsync(_observer!);
 
         await _hubManager.OnDisconnectedAsync(connection);
@@ -94,7 +92,7 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
             }
         } while (!updated && remainingAttempts-- > 0);
 
-        var group = _grainFactory.GetGrain<IGroupGrain>(groupName);
+        var group = GetGroupGrain(groupName);
 
         await group.SubscribeAsync(_observer!);
 
@@ -118,7 +116,7 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
             }
         } while (!updated && remainingAttempts-- > 0);
 
-        var groupGrain = _grainFactory.GetGrain<IGroupGrain>(groupName);
+        var groupGrain = GetGroupGrain(groupName);
 
         await groupGrain.RemoveFromGroupAsync(connectionId);
 
@@ -136,33 +134,33 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         => _hubGrain.SendAllExceptAsync(methodName, args, excludedConnectionIds);
 
     public override Task SendConnectionAsync(string connectionId, string methodName, object?[] args, CancellationToken cancellationToken = default)
-        => _grainFactory
-            .GetGrain<IConnectionGrain>(connectionId)
+        => GetConnectionGrain(connectionId)
             .SendConnectionAsync(methodName, args);
 
     public override Task SendConnectionsAsync(IReadOnlyList<string> connectionIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
         => Task.WhenAll(connectionIds.Select(connectionId => SendConnectionAsync(connectionId, methodName, args, cancellationToken)));
 
     public override Task SendGroupAsync(string groupName, string methodName, object?[] args, CancellationToken cancellationToken = default)
-        => _grainFactory
-            .GetGrain<IGroupGrain>(groupName)
+        => GetGroupGrain(groupName)
             .SendGroupAsync(methodName, args);
 
     public override Task SendGroupExceptAsync(string groupName, string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
-        => _grainFactory
-            .GetGrain<IGroupGrain>(groupName)
+        => GetGroupGrain(groupName)
             .SendGroupExceptAsync(methodName, args, excludedConnectionIds);
 
     public override Task SendGroupsAsync(IReadOnlyList<string> groupNames, string methodName, object?[] args, CancellationToken cancellationToken = default)
         => Task.WhenAll(groupNames.Select(groupName => SendGroupAsync(groupName, methodName, args, cancellationToken)));
 
     public override Task SendUserAsync(string userId, string methodName, object?[] args, CancellationToken cancellationToken = default)
-        => _grainFactory
-            .GetGrain<IUserGrain>(userId)
+        => GetUserGrain(userId)
             .SendUserAsync(methodName, args);
 
     public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
         => Task.WhenAll(userIds.Select(userId => SendUserAsync(userId, methodName, args, cancellationToken)));
+
+    private IConnectionGrain GetConnectionGrain(string connectionId) => _grainFactory.GetConnectionGrain(HubName, connectionId);
+    private IGroupGrain GetGroupGrain(string groupName) => _grainFactory.GetGroupGrain(HubName, groupName);
+    private IUserGrain GetUserGrain(string userId) => _grainFactory.GetUserGrain(HubName, userId);
 
     private void OnApplicationStopping()
     {

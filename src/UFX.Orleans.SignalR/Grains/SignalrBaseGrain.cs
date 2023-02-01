@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
-using System.Diagnostics;
 
 namespace UFX.Orleans.SignalR.Grains;
 
@@ -11,13 +10,24 @@ internal interface ISignalrGrain : IGrainWithStringKey
     Task UnsubscribeAsync(IHubLifetimeManagerGrainObserver observer);
 }
 
-internal abstract class SignalrBaseGrain : Grain<SubscriptionState>, ISignalrGrain, IRemindable, IIncomingGrainCallFilter
+internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, IIncomingGrainCallFilter
 {
+    /// <summary>
+    /// The name of the hub type this grain is connected to.
+    /// </summary>
+    protected readonly string HubName;
+
+    /// <summary>
+    /// The EntityId of the grain. This is the connectionId for a connection grain, the userId for a user grain, the group name for a group grain and the hub name for a hub grain.
+    /// </summary>
+    protected readonly string EntityId;
+    
     private const string PingReminderName = nameof(PingReminderName);
 
     private readonly IPersistentState<SubscriptionState> _persistedSubs;
     private readonly ILogger<SignalrBaseGrain> _logger;
     private readonly TimeSpan _grainCleanupPeriod;
+    
     private HashSet<IHubLifetimeManagerGrainObserver> _observers = new();
 
     protected SignalrBaseGrain(IPersistentState<SubscriptionState> persistedSubs, IOptions<SignalrOrleansOptions> options, ILogger<SignalrBaseGrain> logger)
@@ -25,6 +35,13 @@ internal abstract class SignalrBaseGrain : Grain<SubscriptionState>, ISignalrGra
         _persistedSubs = persistedSubs;
         _logger = logger;
         _grainCleanupPeriod = options.Value.GrainCleanupPeriod;
+
+        // A grain key is in the form of "HubName/EntityId" or "HubName" for hub grains
+        // For example a connection to ChatHub with connectionId 123 will have a grain key of "chathub/123"
+        // A HubGrain does not have an EntityId and will therefore have both HubName and EntityId set to chathub
+        var grainKeyParts = this.GetPrimaryKeyString().Split("/", 2);
+        HubName = grainKeyParts[0];
+        EntityId = grainKeyParts.Length == 2 ? grainKeyParts[1] : HubName;
     }
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)

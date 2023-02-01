@@ -23,11 +23,11 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain
     }
 
     public Task SendConnectionAsync(string methodName, object?[] args) 
-        => InformObserversAsync(observer => observer.SendConnectionAsync(this.GetPrimaryKeyString(), methodName, args));
+        => InformObserversAsync(observer => observer.SendConnectionAsync(EntityId, methodName, args));
 
     public Task AddToGroupAsync(string groupName)
-        => InformObserversAsync(observer => observer.AddToGroupAsync(this.GetPrimaryKeyString(), groupName));
+        => InformObserversAsync(observer => observer.AddToGroupAsync(EntityId, groupName));
 
     public Task RemoveFromGroupAsync(string groupName)
-        => InformObserversAsync(observer => observer.RemoveFromGroupAsync(this.GetPrimaryKeyString(), groupName));
+        => InformObserversAsync(observer => observer.RemoveFromGroupAsync(EntityId, groupName));
 }
