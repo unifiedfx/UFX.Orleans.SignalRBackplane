@@ -1,0 +1,16 @@
+' docker run -d -p 8080:8080 --name plantuml plantuml/plantuml-server:jetty
+@startuml Orleans.SignalR.Client
+hexagon SiloA {
+    storage C1
+    agent HubA
+}
+
+rectangle ExternalOrleansClient
+actor Client1
+
+Client1 <-> HubA
+
+C1 --> HubA : Subscription
+ExternalOrleansClient ..> C1: Send Message to Client1
+
+@enduml

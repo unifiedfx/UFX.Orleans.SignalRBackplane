@@ -1,18 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR.Grains;
 
-internal interface IGroupGrain : ISignalrGrain
+internal interface IGroupGrainInternal : ISignalrGrain
 {
-    Task SendGroupAsync(string methodName, object?[] args);
-    Task SendGroupExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds);
     Task AddToGroupAsync(string connectionId);
     Task RemoveFromGroupAsync(string connectionId);
 }
 
-internal class GroupGrain : SignalrBaseGrain, IGroupGrain
+internal class GroupGrain : SignalrBaseGrain, IGroupGrain, IGroupGrainInternal
 {
     public GroupGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
@@ -26,11 +25,13 @@ internal class GroupGrain : SignalrBaseGrain, IGroupGrain
     public Task AddToGroupAsync(string connectionId) 
         => GrainFactory
             .GetConnectionGrain(HubName, connectionId)
+            .AsReference<IConnectionGrainInternal>()
             .AddToGroupAsync(EntityId);
 
     public Task RemoveFromGroupAsync(string connectionId)
         => GrainFactory
             .GetConnectionGrain(HubName, connectionId)
+            .AsReference<IConnectionGrainInternal>()
             .RemoveFromGroupAsync(EntityId);
 
     public Task SendGroupAsync(string methodName, object?[] args) 

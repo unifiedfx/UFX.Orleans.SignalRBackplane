@@ -1,4 +1,6 @@
-﻿namespace UFX.Orleans.SignalR;
+﻿using UFX.Orleans.SignalR.Grains;
+
+namespace UFX.Orleans.SignalR;
 
 internal interface IHubLifetimeManagerGrainObserver : IGrainObserver
 {
@@ -65,7 +67,9 @@ internal partial class OrleansHubLifetimeManager<THub>
 
                 _observer = _grainFactory.CreateObjectReference<IHubLifetimeManagerGrainObserver>(this);
 
-                await _hubGrain.SubscribeAsync(_observer);
+                await _hubGrain
+                    .AsReference<ISignalrGrain>()
+                    .SubscribeAsync(_observer);
             }
             finally
             {

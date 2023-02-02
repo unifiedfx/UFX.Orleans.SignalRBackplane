@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Persistence.AzureStorage" Version="7.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\UFX.Orleans.SignalR\UFX.Orleans.SignalR.csproj" />
   </ItemGroup>
 

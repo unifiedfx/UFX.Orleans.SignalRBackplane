@@ -2,7 +2,7 @@
 
 namespace Server;
 
-public class ChatHub : Hub
+public class NotificationHub : Hub
 {
     public async Task SendToServer(string message)
     {

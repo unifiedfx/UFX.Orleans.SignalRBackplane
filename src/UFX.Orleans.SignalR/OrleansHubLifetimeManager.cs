@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using UFX.Orleans.SignalR.Abstractions;
 using UFX.Orleans.SignalR.Grains;
 
 namespace UFX.Orleans.SignalR;
@@ -33,11 +34,13 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         _trackedConnections.TryAdd(connection.ConnectionId, (connection.UserIdentifier, Array.Empty<string>()));
 
         await GetConnectionGrain(connection.ConnectionId)
+            .AsReference<ISignalrGrain>()
             .SubscribeAsync(_observer!);
 
         if (connection.UserIdentifier is not null)
         {
             await GetUserGrain(connection.UserIdentifier)
+                .AsReference<ISignalrGrain>()
                 .SubscribeAsync(_observer!);
         }
 
@@ -52,6 +55,7 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         if (connection.UserIdentifier is not null && _trackedConnections.All(conn => conn.Value.UserIdentifier != connection.UserIdentifier))
         {
             await GetUserGrain(connection.UserIdentifier)
+                .AsReference<ISignalrGrain>()
                 .UnsubscribeAsync(_observer!);
         }
 
@@ -59,12 +63,15 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         var groupUnsubTasks = removedConnection.GroupNames.Select(
             groupName =>
                 _trackedConnections.All(conn => !conn.Value.GroupNames.Contains(groupName))
-                    ? GetGroupGrain(groupName).UnsubscribeAsync(_observer!)
+                    ? GetGroupGrain(groupName)
+                        .AsReference<ISignalrGrain>()
+                        .UnsubscribeAsync(_observer!)
                     : Task.CompletedTask
         );
         await Task.WhenAll(groupUnsubTasks);
 
         await GetConnectionGrain(connection.ConnectionId)
+            .AsReference<ISignalrGrain>()
             .UnsubscribeAsync(_observer!);
 
         await _hubManager.OnDisconnectedAsync(connection);
@@ -92,7 +99,8 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
             }
         } while (!updated && remainingAttempts-- > 0);
 
-        var group = GetGroupGrain(groupName);
+        var group = GetGroupGrain(groupName)
+            .AsReference<IGroupGrainInternal>();
 
         await group.SubscribeAsync(_observer!);
 
@@ -116,7 +124,8 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
             }
         } while (!updated && remainingAttempts-- > 0);
 
-        var groupGrain = GetGroupGrain(groupName);
+        var groupGrain = GetGroupGrain(groupName)
+            .AsReference<IGroupGrainInternal>();
 
         await groupGrain.RemoveFromGroupAsync(connectionId);
 
@@ -168,7 +177,9 @@ internal partial class OrleansHubLifetimeManager<THub> : HubLifetimeManager<THub
         {
             try
             {
-                _hubGrain.UnsubscribeAsync(_observer).GetAwaiter().GetResult();
+                _hubGrain
+                    .AsReference<ISignalrGrain>()
+                    .UnsubscribeAsync(_observer).GetAwaiter().GetResult();
             }
             catch
             {
