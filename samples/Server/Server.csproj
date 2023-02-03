@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\UFX.Orleans.SignalR\UFX.Orleans.SignalR.csproj" />
+    <ProjectReference Include="..\..\src\UFX.Orleans.SignalRBackplane\UFX.Orleans.SignalRBackplane.csproj" />
   </ItemGroup>
 
 </Project>

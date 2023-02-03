@@ -1,4 +1,4 @@
-# UFX.Orleans.SignalR
+# UFX.Orleans.SignalRBackplane
 
 # Overview
 
@@ -32,7 +32,7 @@ This is the minimum setup required to use this backplane:
 ```cs
 builder.Host
     .UseOrleans(siloBuilder => siloBuilder
-        .AddMemoryGrainStorage(UFX.Orleans.SignalR.Constants.StorageName)
+        .AddMemoryGrainStorage(UFX.Orleans.SignalRBackplane.Constants.StorageName)
         .UseInMemoryReminderService()
         .AddSignalRBackplane()
     );
@@ -40,7 +40,7 @@ builder.Host
 
 `AddSignalRBackplane` will register reminder support on the silo if not already registered. You must provide reminder persistence using the `UseInMemoryReminderService()` extension (unsuitable for production), or a [persisted reminder storage provider](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders#configuration). 
 
-You must also provide a named storage provider for the grains. The name you must use is stored in the constant `UFX.Orleans.SignalR.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api). All of our grains have the state name of `orleans-signalr-grains` stored in the constant `Orleans.SignalR.Constants.StateName`.
+You must also provide a named storage provider for the grains. The name you must use is stored in the constant `UFX.Orleans.SignalRBackplane.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api). All of our grains have the state name of `orleans-signalr-grains` stored in the constant `Orleans.SignalR.Constants.StateName`.
 
 ## Adding SignalR to the server
 Adding this backplane does not register the SignalR services that are required to make real-time client-to-server and server-to-client possible. We leave this to you as there are a number of configurations you may want to make when doing this. For out-of-the-box configuration, you can call the `AddSignalR` extension on the `IServiceCollection`:
@@ -73,7 +73,7 @@ public class MyService
 ```
 
 ### Sending from an external client
-If you need to send a message from an external client, you can use the `UFX.Orleans.SignalR.Client` package. This package provides an extension point to allow you to use an [Orleans Client](https://learn.microsoft.com/en-us/dotnet/orleans/host/client?pivots=orleans-7-0) to send messages to the SignalR backplane.
+If you need to send a message from an external client, you can use the `UFX.Orleans.SignalRBackplane.Client` package. This package provides an extension point to allow you to use an [Orleans Client](https://learn.microsoft.com/en-us/dotnet/orleans/host/client?pivots=orleans-7-0) to send messages to the SignalR backplane.
 
 To add the external signalr hub service, you can call `AddSignalRHubContexts` on your silo client builder.
 
@@ -107,13 +107,13 @@ public MyService(IExternalSignalrHubContextFactory hubContextFactory)
 Once you have an instance of the hub context, you can use it to send messages to clients. The API is very similar to an `IHubContext`.
 
 ## Logging
-All grains implement the `IIncomingGrainCallFilter` interface, which allows a log of all incoming calls to the grains. This is useful for debugging, as the grain type, method name called, address and id of the grain are all logged. This can be enabled by making sure the debug log level is active for the `UFX.Orleans.SignalR` namespace. One way to do this is to add the following to your `appsettings.json`:
+All grains implement the `IIncomingGrainCallFilter` interface, which allows a log of all incoming calls to the grains. This is useful for debugging, as the grain type, method name called, address and id of the grain are all logged. This can be enabled by making sure the debug log level is active for the `UFX.Orleans.SignalRBackplane` namespace. One way to do this is to add the following to your `appsettings.json`:
 
 ```json
 {
   "Logging": {
     "LogLevel": {
-      "UFX.Orleans.SignalR": "Debug"
+      "UFX.Orleans.SignalRBackplane": "Debug"
     }
   }
 }

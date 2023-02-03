@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\UFX.Orleans.SignalR.Client\UFX.Orleans.SignalR.Client.csproj" />
+    <ProjectReference Include="..\..\src\UFX.Orleans.SignalRBackplane.Client\UFX.Orleans.SignalRBackplane.Client.csproj" />
   </ItemGroup>
 
 </Project>
