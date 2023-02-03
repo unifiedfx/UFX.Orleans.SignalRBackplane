@@ -33,7 +33,6 @@ This is the minimum setup required to use this backplane:
 builder
     .Host
     .UseOrleans(siloBuilder => siloBuilder
-        .AddMemoryGrainStorageAsDefault()
         .AddMemoryGrainStorage(UFX.Orleans.SignalR.Constants.StorageName)
         .UseInMemoryReminderService()
         .AddSignalRBackplane()
@@ -43,8 +42,6 @@ builder
 `AddSignalRBackplane` will register reminder support on the silo if not already registered. You must provide reminder persistence using the `UseInMemoryReminderService()` extension (unsuitable for production), or a [persisted reminder storage provider](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders#configuration). 
 
 You must also provide a named storage provider for the grains. The name you must use is stored in the constant `UFX.Orleans.SignalR.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api). All of our grains have the state name of `orleans-signalr-grains` stored in the constant `Orleans.SignalR.Constants.StateName`.
-
-Due to a [regression in Orleans v7](https://github.com/dotnet/orleans/issues/8283), you must register both a named storage provider and a default storage provider (as shown above). The SignalR backplane uses only the named storage provider.
 
 ## Adding SignalR
 Adding this backplane does not register the SignalR services that are required to make real-time client-to-server and server-to-client possible. We leave this to you as there are a number of configurations you may want to make when doing this. For out-of-the-box configuration, you can call the `AddSignalR` extension on the `IServiceCollection`:

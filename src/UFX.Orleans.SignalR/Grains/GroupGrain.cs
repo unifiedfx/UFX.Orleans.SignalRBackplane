@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
 
@@ -18,24 +18,24 @@ internal class GroupGrain : SignalrBaseGrain, IGroupGrain
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
         IOptions<SignalrOrleansOptions> options,
         ILogger<GroupGrain> logger
-        )
+    )
         : base(persistedSubs, options, logger)
     {
     }
 
     public Task AddToGroupAsync(string connectionId) 
         => GrainFactory
-            .GetGrain<IConnectionGrain>(connectionId)
-            .AddToGroupAsync(this.GetPrimaryKeyString());
+            .GetConnectionGrain(HubName, connectionId)
+            .AddToGroupAsync(EntityId);
 
     public Task RemoveFromGroupAsync(string connectionId)
         => GrainFactory
-            .GetGrain<IConnectionGrain>(connectionId)
-            .RemoveFromGroupAsync(this.GetPrimaryKeyString());
+            .GetConnectionGrain(HubName, connectionId)
+            .RemoveFromGroupAsync(EntityId);
 
     public Task SendGroupAsync(string methodName, object?[] args) 
-        => InformObserversAsync(observer => observer.SendGroupAsync(this.GetPrimaryKeyString(), methodName, args));
+        => InformObserversAsync(observer => observer.SendGroupAsync(EntityId, methodName, args));
 
     public Task SendGroupExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds) 
-        => InformObserversAsync(observer => observer.SendGroupExceptAsync(this.GetPrimaryKeyString(), methodName, args, excludedConnectionIds));
+        => InformObserversAsync(observer => observer.SendGroupExceptAsync(EntityId, methodName, args, excludedConnectionIds));
 }
