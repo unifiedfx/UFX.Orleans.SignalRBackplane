@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using UFX.Orleans.SignalR.Client;
+using UFX.Orleans.SignalRBackplane.Client;
 
 using var host = Host.CreateDefaultBuilder(args)
     .ConfigureLogging(logging => logging.AddConsole())
