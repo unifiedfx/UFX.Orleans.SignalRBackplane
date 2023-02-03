@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace UFX.Orleans.SignalR;
 
-public static class SiloHostBuilderExtensions
+public static class SiloBuilderExtensions
 {
     public static ISiloBuilder AddSignalRBackplane(this ISiloBuilder siloBuilder, Action<SignalrOrleansOptions>? optionsAction = null)
     {

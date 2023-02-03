@@ -26,12 +26,11 @@ This library supports Orleans V7 and uses Grain Observers as a PubSub mechanism.
 * It can be used instead of [Azure SignalR Service](https://azure.microsoft.com/en-gb/products/signalr-service/#overview) scale-out, potentially saving thousands of dollars.
 
 # Usage
-## Adding the Backplane
+## Adding the Backplane to an Orleans Silo
 This is the minimum setup required to use this backplane:
 
 ```cs
-builder
-    .Host
+builder.Host
     .UseOrleans(siloBuilder => siloBuilder
         .AddMemoryGrainStorage(UFX.Orleans.SignalR.Constants.StorageName)
         .UseInMemoryReminderService()
@@ -43,7 +42,7 @@ builder
 
 You must also provide a named storage provider for the grains. The name you must use is stored in the constant `UFX.Orleans.SignalR.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api). All of our grains have the state name of `orleans-signalr-grains` stored in the constant `Orleans.SignalR.Constants.StateName`.
 
-## Adding SignalR
+## Adding SignalR to the server
 Adding this backplane does not register the SignalR services that are required to make real-time client-to-server and server-to-client possible. We leave this to you as there are a number of configurations you may want to make when doing this. For out-of-the-box configuration, you can call the `AddSignalR` extension on the `IServiceCollection`:
 
 ```cs
@@ -55,7 +54,10 @@ builder.Services.AddSignalR();
 You can then [further configure SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/configuration?view=aspnetcore-7.0&tabs=dotnet) as required.
 
 ## Sending messages to clients
-Once the services have been registered by following the section above, you can access an instance of `IHubContext` via dependency injection. You can inject an instance of IHubContext into a controller, middleware, or other DI service. Use the instance to send messages to clients. You can see more detail on the API [here](https://docs.microsoft.com/en-us/aspnet/core/signalr/hubcontext?view=aspnetcore-7.0).
+### Sending from the within the Orleans cluster
+If you are sending a message from within the Orleans cluster, such as in a co-hosting scenario, you can use the `IHubContext` directly.
+
+Once the services have been registered by following the section above, you can access an instance of `IHubContext<MyHub>` via dependency injection. Use the instance to send messages to clients. You can see more detail on the API [here](https://docs.microsoft.com/en-us/aspnet/core/signalr/hubcontext?view=aspnetcore-7.0).
 
 ```cs
 public class MyService
@@ -63,19 +65,49 @@ public class MyService
     private readonly IHubContext<MyHub> _hubContext;
 
     public MyService(IHubContext<MyHub> hubContext)
-    {
-        _hubContext = hubContext;
-    }
+      => _hubContext = hubContext;
 
-    public async Task SendMessage(string message)
-    {
-        await _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
-    }
+    public Task SendMessage(string message)
+       => await _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
 }
 ```
 
+### Sending from an external client
+If you need to send a message from an external client, you can use the `UFX.Orleans.SignalR.Client` package. This package provides an extension point to allow you to use an [Orleans Client](https://learn.microsoft.com/en-us/dotnet/orleans/host/client?pivots=orleans-7-0) to send messages to the SignalR backplane.
+
+To add the external signalr hub service, you can call `AddSignalRHubContexts` on your silo client builder.
+
+```cs
+.UseOrleansClient(clientBuilder => clientBuilder  
+  .AddSignalRHubContexts()
+)
+```
+
+This will register both an `IExternalSignalrHubContextFactory` and a service resolver for typed contexts. This pattern will be familiar to anyone who has used Microsoft's `ILogger` and `ILoggerFactory`.
+
+**If you have access to the hub type** from your client project, you can create an instance of the hub context either by resolving the hub context factory:
+
+```cs
+public MyService(IExternalSignalrHubContextFactory hubContextFactory)
+  => _hubContext = hubContextFactory.CreateHubContext<MyHub>();
+```
+or simply injecting the typed context directly
+```cs
+public MyService(IExternalSignalrHubContext<MyHub> hubContext)
+  => _hubContext = hubContext;
+```
+
+**If you do not have access to the hub type** from your client project, you must provide the hub name directly to the factory. Note that the name must be the [FullName](https://learn.microsoft.com/en-us/dotnet/api/system.type.fullname?f1url=%3FappId%3DDev16IDEF1%26l%3DEN-US%26k%3Dk(System.Type.FullName)%3Bk(SolutionItemsProject)%3Bk(DevLang-csharp)%26rd%3Dtrue&view=net-7.0) of the hub type, all in lowercase. You can can use the following to get an instance of the external hub context:
+
+```cs
+public MyService(IExternalSignalrHubContextFactory hubContextFactory)
+  => _hubContext = hubContextFactory.CreateHubContext("myotherassembly.myhub");
+```
+
+Once you have an instance of the hub context, you can use it to send messages to clients. The API is very similar to an `IHubContext`.
+
 ## Logging
-All grains implement the `IIncomingGrainCallFilter` interface, which allows us to log all incoming calls to the grains. This is useful for debugging, as we log the grain type, method name called, address and id of the grain. You can enable this by making sure the debug log level is active for the `UFX.Orleans.SignalR` namespace. One way to do this is to add the following to your `appsettings.json`:
+All grains implement the `IIncomingGrainCallFilter` interface, which allows a log of all incoming calls to the grains. This is useful for debugging, as the grain type, method name called, address and id of the grain are all logged. This can be enabled by making sure the debug log level is active for the `UFX.Orleans.SignalR` namespace. One way to do this is to add the following to your `appsettings.json`:
 
 ```json
 {
@@ -90,10 +122,12 @@ All grains implement the `IIncomingGrainCallFilter` interface, which allows us t
 You can see other ways to configure the log level [here](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-7.0#set-log-level-by-command-line-environment-variables-and-other-configuration).
 
 # Sample Client and Server
-A sample client and server are supplied in the `samples` folder. The server is a simple ASP.NET Core app that uses the SignalR backplane and provides a single SignalR hub. The client is a simple console application that connects to the server and sends messages to it. The server will add the caller to a group, echo the message to the sender, to the group, and all connected clients.
+A sample SignalR client, Orleans client and Orleans silo are supplied in the `samples` folder. 
+* The `Server` is a co-hosted ASP.NET Core app that uses the SignalR backplane and provides a single SignalR hub in the same process as the Silo. 
+* The `SignalRClient` is a console application that connects to the server via SignalR and allows sending messages via command line input. On receipt of a message, the `ChatHub` on the server will add the caller to a group and then echo the message to the sender, to the group, and all connected clients.
+* The `OrleansClient` is a console application that connects to the Silo and requests that a message is sent to all connections every 3 seconds.
 
 ## Server
-
 The server runs on a random port each time to allow you to run multiple instances locally for multi-silo testing. The port can be found in the console output of the server. 
 
 ```
@@ -107,11 +141,18 @@ If you wish to run on the same port each time, you can change the `applicationUr
 \samples\Server> dotnet run
 ```
 
-## Client
+## SignalR Client
 To run the client, use the following command. You must provide the port number that the server is running on. You can also give an optional number of SignalR connections to create from the client, which defaults to 1.
 
 ```bash
-\samples\Client> dotnet run <server port number> [connection count]
+\samples\SignalRClient> dotnet run <server port number> [connection count]
+```
+
+## Orleans Client
+To run the client, use the following command. There is no need to provide the port that the server is running on, as both the silo and client use [localhost clustering](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/local-development-configuration).
+
+```bash
+\samples\OrleansClient> dotnet run
 ```
 
 # Design
@@ -140,5 +181,7 @@ If you would like to customise the cleanup period, use the `GrainCleanupPeriod` 
 ```
 
 # Architecture
-
+## Sending from the within the Orleans cluster
 ![Diagram](assets/Orleans.SignalR.png)
+## Sending from an external client
+![Diagram](assets/Orleans.SignalR.Client.png)

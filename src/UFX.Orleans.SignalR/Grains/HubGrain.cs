@@ -1,14 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR.Grains;
-
-internal interface IHubGrain : ISignalrGrain
-{
-    Task SendAllAsync(string methodName, object?[] args);
-    Task SendAllExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds);
-}
 
 internal class HubGrain : SignalrBaseGrain, IHubGrain
 {

@@ -1,4 +1,4 @@
-﻿using UFX.Orleans.SignalR.Grains;
+﻿using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR;
 

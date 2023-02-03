@@ -1,17 +1,17 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR.Grains;
 
-internal interface IConnectionGrain : ISignalrGrain
+internal interface IConnectionGrainInternal : ISignalrGrain
 {
-    Task SendConnectionAsync(string methodName, object?[] args);
     Task AddToGroupAsync(string groupName);
     Task RemoveFromGroupAsync(string groupName);
 }
 
-internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain
+internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnectionGrainInternal
 {
     public ConnectionGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,

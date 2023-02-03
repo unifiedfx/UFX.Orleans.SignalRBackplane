@@ -1,13 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
+using UFX.Orleans.SignalR.Abstractions;
 
 namespace UFX.Orleans.SignalR.Grains;
-
-internal interface IUserGrain : ISignalrGrain
-{
-    Task SendUserAsync(string methodName, object?[] args);
-}
 
 internal class UserGrain : SignalrBaseGrain, IUserGrain
 {

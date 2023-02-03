@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Server;
 using UFX.Orleans.SignalR;
 
@@ -7,7 +9,6 @@ builder
     .Host
     .UseOrleans(siloBuilder => siloBuilder
         .UseLocalhostClustering()
-        .AddMemoryGrainStorageAsDefault()
         .AddMemoryGrainStorage(Constants.StorageName)
         .UseInMemoryReminderService()
         .AddSignalRBackplane(x => x.GrainCleanupPeriod = TimeSpan.FromMinutes(1))
