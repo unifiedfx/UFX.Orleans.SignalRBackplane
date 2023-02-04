@@ -9,9 +9,11 @@ internal class UserGrain : SignalrBaseGrain, IUserGrain
 {
     public UserGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
+        IGrainContext grainContext,
+        IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
         ILogger<UserGrain> logger)
-        : base(persistedSubs, options, logger)
+        : base(persistedSubs, grainContext, reminderResolver, options, logger)
     {
     }
 

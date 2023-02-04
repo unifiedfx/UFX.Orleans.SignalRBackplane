@@ -17,4 +17,13 @@
     <ProjectReference Include="..\UFX.Orleans.SignalRBackplane.Abstractions\UFX.Orleans.SignalRBackplane.Abstractions.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>UFX.Orleans.SignalRBackplane.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

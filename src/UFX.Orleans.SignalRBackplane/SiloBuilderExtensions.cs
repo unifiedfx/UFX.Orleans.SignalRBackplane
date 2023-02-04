@@ -18,7 +18,9 @@ public static class SiloBuilderExtensions
             services.ConfigureOptions<SignalrOrleansOptions>();
         }
 
-        services.AddSingleton(typeof(HubLifetimeManager<>), typeof(OrleansHubLifetimeManager<>));
+        services
+            .AddSingleton(typeof(HubLifetimeManager<>), typeof(OrleansHubLifetimeManager<>))
+            .AddSingleton<IReminderResolver, ReminderResolver>();
 
         siloBuilder.AddReminders();
 

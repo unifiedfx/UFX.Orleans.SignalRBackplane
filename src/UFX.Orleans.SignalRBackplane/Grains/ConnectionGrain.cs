@@ -15,10 +15,12 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnection
 {
     public ConnectionGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
+        IGrainContext grainContext,
+        IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
         ILogger<ConnectionGrain> logger
     )
-        : base(persistedSubs, options, logger)
+        : base(persistedSubs, grainContext, reminderResolver, options, logger)
     {
     }
 

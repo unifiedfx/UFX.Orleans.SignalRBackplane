@@ -13,23 +13,29 @@ internal interface IGroupGrainInternal : ISignalrGrain
 
 internal class GroupGrain : SignalrBaseGrain, IGroupGrain, IGroupGrainInternal
 {
+    private readonly IGrainFactory _grainFactory;
+
     public GroupGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
+        IGrainContext grainContext,
+        IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
-        ILogger<GroupGrain> logger
+        ILogger<GroupGrain> logger,
+        IGrainFactory grainFactory
     )
-        : base(persistedSubs, options, logger)
+        : base(persistedSubs, grainContext, reminderResolver, options, logger)
     {
+        _grainFactory = grainFactory;
     }
 
     public Task AddToGroupAsync(string connectionId) 
-        => GrainFactory
+        => _grainFactory
             .GetConnectionGrain(HubName, connectionId)
             .AsReference<IConnectionGrainInternal>()
             .AddToGroupAsync(EntityId);
 
     public Task RemoveFromGroupAsync(string connectionId)
-        => GrainFactory
+        => _grainFactory
             .GetConnectionGrain(HubName, connectionId)
             .AsReference<IConnectionGrainInternal>()
             .RemoveFromGroupAsync(EntityId);
