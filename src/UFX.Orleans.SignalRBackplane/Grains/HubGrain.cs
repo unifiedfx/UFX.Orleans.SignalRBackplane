@@ -9,10 +9,12 @@ internal class HubGrain : SignalrBaseGrain, IHubGrain
 {
     public HubGrain(
         [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
+        IGrainContext grainContext,
+        IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
         ILogger<HubGrain> logger
     )
-        : base(persistedSubs, options, logger)
+        : base(persistedSubs, grainContext, reminderResolver, options, logger)
     {
     }
 

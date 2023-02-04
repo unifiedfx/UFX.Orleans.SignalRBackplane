@@ -10,8 +10,10 @@ internal interface ISignalrGrain : IGrainWithStringKey
     Task UnsubscribeAsync(IHubLifetimeManagerGrainObserver observer);
 }
 
-internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, IIncomingGrainCallFilter
+internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindable, IIncomingGrainCallFilter
 {
+    public IGrainContext GrainContext { get; }
+
     /// <summary>
     /// The name of the hub type this grain is connected to.
     /// </summary>
@@ -25,14 +27,22 @@ internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, II
     private const string PingReminderName = nameof(PingReminderName);
 
     private readonly IPersistentState<SubscriptionState> _persistedSubs;
+    private readonly IReminderResolver _reminderResolver;
     private readonly ILogger<SignalrBaseGrain> _logger;
     private readonly TimeSpan _grainCleanupPeriod;
     
     private HashSet<IHubLifetimeManagerGrainObserver> _observers = new();
 
-    protected SignalrBaseGrain(IPersistentState<SubscriptionState> persistedSubs, IOptions<SignalrOrleansOptions> options, ILogger<SignalrBaseGrain> logger)
+    protected SignalrBaseGrain(
+        IPersistentState<SubscriptionState> persistedSubs, 
+        IGrainContext grainContext,
+        IReminderResolver reminderResolver,
+        IOptions<SignalrOrleansOptions> options,
+        ILogger<SignalrBaseGrain> logger)
     {
+        GrainContext = grainContext;
         _persistedSubs = persistedSubs;
+        _reminderResolver = reminderResolver;
         _logger = logger;
         _grainCleanupPeriod = options.Value.GrainCleanupPeriod;
 
@@ -44,13 +54,11 @@ internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, II
         EntityId = grainKeyParts.Length == 2 ? grainKeyParts[1] : HubName;
     }
 
-    public override async Task OnActivateAsync(CancellationToken cancellationToken)
+    public async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         await this.RegisterOrUpdateReminder(PingReminderName, _grainCleanupPeriod, _grainCleanupPeriod);
 
         _observers = _persistedSubs.State.Observers;
-
-        await base.OnActivateAsync(cancellationToken);
     }
 
     public Task SubscribeAsync(IHubLifetimeManagerGrainObserver observer) 
@@ -114,13 +122,14 @@ internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, II
         {
             await _persistedSubs.ClearStateAsync();
 
-            var grainReminder = await this.GetReminder(PingReminderName);
+            var grainReminder = await _reminderResolver.GetReminder(this, PingReminderName);
+
             if (grainReminder is not null)
             {
                 await this.UnregisterReminder(grainReminder);
             }
 
-            DeactivateOnIdle();
+            this.DeactivateOnIdle();
         }
         else if (countBeforeAction != countAfterAction)
         {
@@ -129,7 +138,7 @@ internal abstract class SignalrBaseGrain : Grain, ISignalrGrain, IRemindable, II
         }
     }
 
-    public Task Invoke(IIncomingGrainCallContext context)
+    Task IIncomingGrainCallFilter.Invoke(IIncomingGrainCallContext context)
     {
         if (_logger.IsEnabled(LogLevel.Debug))
         {
