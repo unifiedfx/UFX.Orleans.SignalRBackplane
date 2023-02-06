@@ -19,27 +19,26 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.0.x
-      - name: Restore dependencies
-        run: dotnet restore
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
-      - name: Pack
-        working-directory: src/UFX.Orleans.SignalR
-        run: dotnet pack --configuration Release --no-build -p:Version=${GITHUB_REF##*/v}
-      - name: Push
-        working-directory: src/UFX.Orleans.SignalR/bin/Release
+
+      - name: Pack Backplane
+        working-directory: src/UFX.Orleans.SignalRBackplane
+        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v}
+
+      - name: Pack Client
+        working-directory: src/UFX.Orleans.SignalRBackplane.Client
+        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v}
+      
+      - name: Push Backplane
+        working-directory: src/UFX.Orleans.SignalRBackplane/bin/Release
         run: |
-          dotnet nuget push UFX.Orleans.SignalR.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
-#      - name: Create Release
-#        uses: actions/github-script@v5
-#        with:
-#          script: |
-#            github.rest.repos.createRelease({
-#              owner: context.repo.owner,
-#              repo: context.repo.repo,
-#              tag_name: context.ref,              
-#              name: context.ref,
-#              draft: false,
-#              prerelease: false,
-#              generate_release_notes: true
-#            })
+          dotnet nuget push UFX.Orleans.SignalRBackplane.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
+
+      - name: Push Client
+        working-directory: src/UFX.Orleans.SignalRBackplane.Client/bin/Release
+        run: |
+          dotnet nuget push UFX.Orleans.SignalRBackplane.Client.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "**/Release/UFX.Orleans.SignalRBackplane.*.nupkg"

@@ -6,13 +6,14 @@
 
     <!-- Set common properties regarding assembly information and nuget packages -->
     <PropertyGroup>
-        <Authors>Stephen Welsh</Authors>
-        <Owners>Stephen Welsh, UnifiedFX</Owners>
-        <Product>Orleans SignalR Scaleout</Product>
-        <RepositoryUrl>https://github.com/UnifiedFX/UFX.Orleans.SignalR</RepositoryUrl>
+        <Authors>Stephen Welsh, Michael McNeil</Authors>
+        <Owners>Stephen Welsh, Michael McNeil, UnifiedFX</Owners>
+        <Title>UFX.Orleans.SignalRBackplane - Orleans backplane for SignalR</Title>
+        <Description>Orleans backplane for SignalR</Description>
+        <RepositoryUrl>https://github.com/UnifiedFX/UFX.Orleans.SignalRBackplane</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/UnifiedFX/UFX.Orleans.SignalR</PackageProjectUrl>
+        <PackageProjectUrl>https://github.com/UnifiedFX/UFX.Orleans.SignalRBackplane</PackageProjectUrl>
         <PackageIcon>logo_128.png</PackageIcon>
         <PackageTags>Orleans Cloud-Computing Actor-Model Actors Distributed-Systems Real-Time SignalR C# .NET</PackageTags>
     </PropertyGroup>

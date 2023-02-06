@@ -29,4 +29,4 @@ jobs:
       run: dotnet build --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test --no-restore
+      run: dotnet test --no-restore --configuration Release
