@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Shared;
 using UFX.Orleans.SignalRBackplane.Client;
 
 using var host = Host.CreateDefaultBuilder(args)
@@ -17,6 +18,6 @@ var hubContext = hubContextFactory.CreateHubContext("server.chathub");
 
 while (true)
 {
-    await hubContext.SendAllAsync("ReplyToClient", new object?[] { "To the group: Hello from the orleans client" });
+    await hubContext.SendAllAsync("ReplyToClient", new object?[] { new ExampleInvocation("OrleansClient", "All Clients", "Hello from the Orleans Client") });
     await Task.Delay(TimeSpan.FromSeconds(3));
 }

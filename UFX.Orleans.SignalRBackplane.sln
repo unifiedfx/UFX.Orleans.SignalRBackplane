@@ -27,7 +27,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UFX.Orleans.SignalRBackplan
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A54D4A25-49FE-462A-B6ED-F6F65724C661}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UFX.Orleans.SignalRBackplane.Tests", "tests\UFX.Orleans.SignalRBackplane.Tests\UFX.Orleans.SignalRBackplane.Tests.csproj", "{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UFX.Orleans.SignalRBackplane.Tests", "tests\UFX.Orleans.SignalRBackplane.Tests\UFX.Orleans.SignalRBackplane.Tests.csproj", "{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "samples\Shared\Shared.csproj", "{1127F75A-DA6E-4844-AAF1-AE51E01EC52D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -67,6 +69,10 @@ Global
 		{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1127F75A-DA6E-4844-AAF1-AE51E01EC52D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1127F75A-DA6E-4844-AAF1-AE51E01EC52D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1127F75A-DA6E-4844-AAF1-AE51E01EC52D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1127F75A-DA6E-4844-AAF1-AE51E01EC52D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,6 +86,7 @@ Global
 		{E0EEC42E-E9A9-4884-AB6E-5E9E3B186379} = {D024B03D-C935-42D7-996D-DC72205E7B36}
 		{B97FCC8A-0D17-4B5E-9204-524F163DB285} = {A54D4A25-49FE-462A-B6ED-F6F65724C661}
 		{2E5F1003-7E69-4EEC-A469-8FF1A7E4F2FA} = {A54D4A25-49FE-462A-B6ED-F6F65724C661}
+		{1127F75A-DA6E-4844-AAF1-AE51E01EC52D} = {36EB7595-3C51-4141-A20B-14672287285C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA41F210-CF4A-4050-9900-D794112D87C6}
