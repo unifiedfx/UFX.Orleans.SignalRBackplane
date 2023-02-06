@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\UFX.Orleans.SignalRBackplane\UFX.Orleans.SignalRBackplane.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>
