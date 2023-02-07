@@ -20,25 +20,13 @@ jobs:
         with:
           dotnet-version: 7.0.x
 
-      - name: Pack Backplane
-        working-directory: src/UFX.Orleans.SignalRBackplane
-        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
-
-      - name: Pack Client
-        working-directory: src/UFX.Orleans.SignalRBackplane.Client
+      - name: Pack All Projects
         run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
       
-      - name: Push Backplane
-        working-directory: src/UFX.Orleans.SignalRBackplane/bin/Release
-        run: |
-          dotnet nuget push UFX.Orleans.SignalRBackplane.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
-
-      - name: Push Client
-        working-directory: src/UFX.Orleans.SignalRBackplane.Client/bin/Release
-        run: |
-          dotnet nuget push UFX.Orleans.SignalRBackplane.Client.*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
+      - name: Push All Packages
+        run: dotnet nuget push **/Release/*.nupkg --skip-duplicate -k ${{ secrets.NUGET_APIKEY }} -s https://api.nuget.org/v3/index.json
 
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "**/Release/UFX.Orleans.SignalRBackplane.*.nupkg,**/Release/UFX.Orleans.SignalRBackplane.*.snupkg"
+          artifacts: "**/Release/*.nupkg,**/Release/*.snupkg"
