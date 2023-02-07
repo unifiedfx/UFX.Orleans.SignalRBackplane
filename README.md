@@ -62,7 +62,18 @@ builder.Host
 
 `AddSignalRBackplane` will register reminder support on the silo if not already registered. You must provide reminder persistence using the `UseInMemoryReminderService()` extension (unsuitable for production), or a [persisted reminder storage provider](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders#configuration). 
 
-You must also provide a named storage provider for the grains. The name you must use is stored in the constant `UFX.Orleans.SignalRBackplane.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api). All of our grains have the state name of `orleans-signalr-grains` stored in the constant `Orleans.SignalR.Constants.StateName`.
+You must also provide a named storage provider for the grains. We do not recommend memory storage for production. The name you must use is stored in the constant `UFX.Orleans.SignalRBackplane.Constants.StorageName`. This allows you to register a storage provider specific to the SignalR backplane, which can be a different storage provider to the rest of your application if preferred. You can see more detail on the persistence API [here](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#api).
+
+You can use [any supported grain persistence](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-persistence/?pivots=orleans-7-0#packages). For example, if you want to store our grains in Azure Blob storage, you can install the [Microsoft.Orleans.Persistence.AzureStorage](https://www.nuget.org/packages/Microsoft.Orleans.Persistence.AzureStorage) package, and change the above code to
+
+```cs
+builder.Host
+    .UseOrleans(siloBuilder => siloBuilder
+        .AddAzureBlobGrainStorage(UFX.Orleans.SignalRBackplane.Constants.StorageName, options => options.ConfigureBlobServiceClient(<yourBlobStorageConnectionString>))
+        .UseInMemoryReminderService()
+        .AddSignalRBackplane()
+    );
+```
 
 ## Adding SignalR to the server
 Adding this backplane does not register the SignalR services that are required to make real-time client-to-server and server-to-client possible. We leave this to you as there are a number of configurations you may want to make when doing this. For out-of-the-box configuration, you can call the `AddSignalR` extension on the `IServiceCollection`:
