@@ -22,11 +22,11 @@ jobs:
 
       - name: Pack Backplane
         working-directory: src/UFX.Orleans.SignalRBackplane
-        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v}
+        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
 
       - name: Pack Client
         working-directory: src/UFX.Orleans.SignalRBackplane.Client
-        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v}
+        run: dotnet pack --configuration Release -p:Version=${GITHUB_REF##*/v} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
       
       - name: Push Backplane
         working-directory: src/UFX.Orleans.SignalRBackplane/bin/Release
@@ -41,4 +41,4 @@ jobs:
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "**/Release/UFX.Orleans.SignalRBackplane.*.nupkg"
+          artifacts: "**/Release/UFX.Orleans.SignalRBackplane.*.nupkg,**/Release/UFX.Orleans.SignalRBackplane.*.snupkg"
