@@ -13,10 +13,6 @@ public static class SiloBuilderExtensions
         {
             services.Configure(optionsAction);
         }
-        else
-        {
-            services.ConfigureOptions<SignalrOrleansOptions>();
-        }
 
         services
             .AddSingleton(typeof(HubLifetimeManager<>), typeof(OrleansHubLifetimeManager<>))
