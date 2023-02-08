@@ -1,3 +1,7 @@
+[![CI](https://github.com/unifiedfx/UFX.Orleans.SignalRBackplane/actions/workflows/ci.yml/badge.svg)](https://github.com/unifiedfx/UFX.Orleans.SignalRBackplane/actions/workflows/ci.yml)
+![Nuget](https://img.shields.io/nuget/v/UFX.Orleans.SignalRBackplane?label=nuget%20-%20SignalRBackplane)
+![Nuget](https://img.shields.io/nuget/v/UFX.Orleans.SignalRBackplane.Client?label=nuget%20-%20SignalRBackplane.Client)
+
 # UFX.Orleans.SignalRBackplane
 
 - [Overview](#overview)
@@ -23,9 +27,6 @@
   * [Sending from an external client](#sending-from-an-external-client-1)
 
 # Overview
-
-[![CI](https://github.com/unifiedfx/UFX.Orleans.SignalR/actions/workflows/ci.yml/badge.svg)](https://github.com/unifiedfx/UFX.Orleans.SignalR/actions/workflows/ci.yml)
-
 [Orleans](https://github.com/dotnet/orleans) is a framework that provides a straightforward approach to building distributed high-scale computing applications without the need to learn and apply complex concurrency or other scaling patterns.
 
 [ASP.NET Core SignalR](https://github.com/aspnet/SignalR) is a library for ASP.NET Core that makes it incredibly simple to add real-time web functionality to your applications.
