@@ -50,6 +50,8 @@ This library supports Orleans V7 and uses Grain Observers as a PubSub mechanism.
 
 # Usage
 ## Adding the Backplane to an Orleans Silo
+Install [UFX.Orleans.SignalRBackplane](https://www.nuget.org/packages/UFX.Orleans.SignalRBackplane) on the silo.
+
 This is the minimum setup required to use this backplane:
 
 ```cs
@@ -107,7 +109,7 @@ public class MyService
 ```
 
 ### Sending from an external client
-If you need to send a message from an external client, you can use the `UFX.Orleans.SignalRBackplane.Client` package. This package provides an extension point to allow you to use an [Orleans Client](https://learn.microsoft.com/en-us/dotnet/orleans/host/client?pivots=orleans-7-0) to send messages to the SignalR backplane.
+If you need to send a message from an external client, you can use the [`UFX.Orleans.SignalRBackplane.Client`](https://www.nuget.org/packages/UFX.Orleans.SignalRBackplane.Client) package. This package provides an extension point to allow you to use an [Orleans Client](https://learn.microsoft.com/en-us/dotnet/orleans/host/client?pivots=orleans-7-0) to send messages to the SignalR backplane.
 
 To add the external signalr hub service, you can call `AddSignalRHubContexts` on your silo client builder.
 
