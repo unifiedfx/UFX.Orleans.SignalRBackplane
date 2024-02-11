@@ -79,7 +79,7 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             var reminderResolver = A.Fake<IReminderResolver>();
             
             A.CallTo(() => grainContext.GrainId).Returns(GrainId.Create("test", "a"));
-            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder>(null!);
+            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder?>(null!);
 
             var grain = new TestGrain(
                 persistentState,
@@ -106,7 +106,7 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             var reminderResolver = A.Fake<IReminderResolver>();
 
             A.CallTo(() => grainContext.GrainId).Returns(GrainId.Create("test", "a"));
-            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder>(null!);
+            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder?>(null!);
 
             var grain = new TestGrain(
                 persistentState,
@@ -135,7 +135,7 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             var reminderResolver = A.Fake<IReminderResolver>();
 
             A.CallTo(() => grainContext.GrainId).Returns(GrainId.Create("test", "a"));
-            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder>(null!);
+            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder?>(null!);
 
             var grain = new TestGrain(
                 persistentState,
@@ -163,7 +163,7 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             var reminderResolver = A.Fake<IReminderResolver>();
 
             A.CallTo(() => grainContext.GrainId).Returns(GrainId.Create("test", "a"));
-            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder>(null!);
+            A.CallTo(() => reminderResolver.GetReminder(A<IGrainBase>.Ignored, A<string>.Ignored)).Returns<IGrainReminder?>(null!);
 
             var grain = new TestGrain(
                 persistentState,
