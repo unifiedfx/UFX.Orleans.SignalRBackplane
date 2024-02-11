@@ -4,7 +4,7 @@ namespace UFX.Orleans.SignalRBackplane;
 
 internal interface IReminderResolver
 {
-    Task<IGrainReminder> GetReminder(IGrainBase grainBase, string reminderName);
+    Task<IGrainReminder?> GetReminder(IGrainBase grainBase, string reminderName);
 }
 
 /// <summary>
@@ -13,6 +13,6 @@ internal interface IReminderResolver
 /// </summary>
 internal class ReminderResolver : IReminderResolver
 {
-    public Task<IGrainReminder> GetReminder(IGrainBase grainBase, string reminderName) 
+    public Task<IGrainReminder?> GetReminder(IGrainBase grainBase, string reminderName) 
         => grainBase.GetReminder(reminderName);
 }
