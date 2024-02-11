@@ -78,6 +78,20 @@ builder.Host
     );
 ```
 
+### Using Fully Qualified Grain Types
+Versions greater than v7.2.1 of this library fully qualify the grain type names to avoid grain type conflicts with grains from your own application. 
+
+#### Existing deployments with v7.2.1 and below
+Up to v7.2.1 of this library, if your own project contained any grain type names that are the same as a grain created by this library, such as `UserGrain`, then your silo would fail to start, because Orleans cannot differentiate between the two grain types.
+
+If you have an existing deployment with v7.2.1 or earlier, and upgrade this library, **Fully Qualified Grain Types are considered a breaking change**, and you may experience issues as the grain type names will no longer be backwards compatible. If this is the case, you should set `UseFullyQualifiedGrainTypes` to false to keep the v7.2.1  behaviour of this library.
+
+```cs
+.AddSignalRBackplane(options => options.UseFullyQualifiedGrainTypes = false)
+```
+
+If you disable fully qualified grain types, you must ensure that your grain type names do not conflict with the grain types created by this library. This can be done by [decorating your own types](https://learn.microsoft.com/en-us/dotnet/orleans/grains/grain-identity#grain-type-names).
+
 ## Adding SignalR to the server
 Adding this backplane does not register the SignalR services that are required to make real-time client-to-server and server-to-client possible. We leave this to you as there are a number of configurations you may want to make when doing this. For out-of-the-box configuration, you can call the `AddSignalR` extension on the `IServiceCollection`:
 
