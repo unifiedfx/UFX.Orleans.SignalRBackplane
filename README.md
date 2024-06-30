@@ -78,6 +78,42 @@ builder.Host
     );
 ```
 
+A complete example using MongoDB, includes the setup for named storage and reminders:
+
+```cs
+using Orleans.Providers.MongoDB.Configuration;
+using UFX.Orleans.SignalRBackplane;
+
+builder.Host
+    .UseOrleans(siloBuilder => siloBuilder
+        .UseMongoDBClient("MongoDBConnectionString")
+        .AddMongoDBGrainStorageAsDefault(options =>
+        {
+            options.Configure(storage =>
+            {
+                storage.DatabaseName = "DefaultStorage";
+            });
+        })
+        .AddMongoDBGrainStorage(Constants.StorageName, options =>
+        {
+            options.Configure(storage =>
+            {
+                storage.DatabaseName = "SignalRBackPlaneGrainStoreage";
+            });
+        })
+        .UseMongoDBReminders(options =>
+        {
+            options.DatabaseName = "SignalRBackPlaneRemindersStoreage";
+        })
+        .Configure<Orleans.Configuration.ClusterOptions>(options =>
+        {
+            options.ClusterId = "OrleansClusterId";
+            options.ServiceId = "OrleansServiceId";
+        })
+        .AddSignalRBackplane();
+    );
+```
+
 ### Using Fully Qualified Grain Types
 Versions greater than v7.2.1 of this library fully qualify the grain type names to avoid grain type conflicts with grains from your own application. 
 
