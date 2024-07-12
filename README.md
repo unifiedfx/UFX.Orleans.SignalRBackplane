@@ -114,6 +114,24 @@ builder.Host
     );
 ```
 
+### Orleans Serialization
+
+With Orleans 7+ the default binary serializer is version tolerant and requires you to be explicit about which types are serializable.
+Therefore, sending types via SignalR Backplane that are not marked with the [GenerateSerializer] attribute will result in an exception.
+The following code is a way to allow any type to be sent via SignalR BackPlane without the need to mark them with the [GenerateSerializer] attribute while still using the default Orleans serializer for types that are marked with the [GenerateSerializer] attribute to maximise performance.
+
+```cs
+siloBuilder.Services.AddSerializer(serializerBuilder =>
+{
+    var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+    var types = new HashSet<Type>(assemblies.
+        SelectMany(a => a.GetTypes()).
+        Where(t => t.CustomAttributes.Any(a =>a.AttributeType == typeof(GenerateSerializerAttribute))));
+    serializerBuilder.AddJsonSerializer(type => !types.Contains(type));
+});        
+```
+
+
 ### Using Fully Qualified Grain Types
 Versions greater than v7.2.1 of this library fully qualify the grain type names to avoid grain type conflicts with grains from your own application. 
 
