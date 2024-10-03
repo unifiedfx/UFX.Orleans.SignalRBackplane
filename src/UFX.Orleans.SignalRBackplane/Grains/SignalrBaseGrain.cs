@@ -71,7 +71,7 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
     {
         if (reminderName == PingReminderName)
         {
-            await RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()));
+            await RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()), deactivateOnIdle: true);
         }
     }
 
@@ -98,27 +98,27 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
         }
     }
 
-    Task RunActionAndUpdateStateAsync(Action action)
+    Task RunActionAndUpdateStateAsync(Action action, bool deactivateOnIdle = false)
     {
         var countBeforeAction = _observers.Count;
         action();
         var countAfterAction = _observers.Count;
 
-        return UpdateStateAsync(countBeforeAction, countAfterAction);
+        return UpdateStateAsync(countBeforeAction, countAfterAction, deactivateOnIdle);
     }
 
-    async Task RunActionAndUpdateStateAsync(Func<Task> func)
+    async Task RunActionAndUpdateStateAsync(Func<Task> func, bool deactivateOnIdle = false)
     {
         var countBeforeAction = _observers.Count;
         await func();
         var countAfterAction = _observers.Count;
 
-        await UpdateStateAsync(countBeforeAction, countAfterAction);
+        await UpdateStateAsync(countBeforeAction, countAfterAction, deactivateOnIdle);
     }
 
-    async Task UpdateStateAsync(int countBeforeAction, int countAfterAction)
+    async Task UpdateStateAsync(int countBeforeAction, int countAfterAction, bool deactivateOnIdle)
     {
-        if (countAfterAction == 0)
+        if (countAfterAction == 0 && deactivateOnIdle)
         {
             await _persistedSubs.ClearStateAsync();
 
