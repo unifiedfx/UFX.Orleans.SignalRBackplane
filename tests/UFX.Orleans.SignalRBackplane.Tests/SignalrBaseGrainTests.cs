@@ -93,12 +93,12 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             // Act
             await grain.UnsubscribeAsync(observer);
 
-            A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), null)).MustNotHaveHappened();
+            A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), CancellationToken.None)).MustNotHaveHappened();
 
             await grain.ReceiveReminder("PingReminderName", new TickStatus());
 
             // Assert
-            A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), null)).MustHaveHappenedOnceExactly();
+            A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), CancellationToken.None)).MustHaveHappenedOnceExactly();
         }
 
         [Fact]
