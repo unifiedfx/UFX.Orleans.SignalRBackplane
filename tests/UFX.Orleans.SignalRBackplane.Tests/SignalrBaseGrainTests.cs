@@ -71,7 +71,7 @@ namespace UFX.Orleans.SignalRBackplane.Tests
         }
 
         [Fact]
-        public async Task Unsubscribe_DeactivatesGrain_WhenLastObserverUnsubscribes()
+        public async Task Unsubscribe_DeactivatesGrain_AfterReminderWhenLastObserverUnsubscribes()
         {
             // Arrange
             var persistentState = A.Fake<IPersistentState<SubscriptionState>>();
@@ -92,6 +92,10 @@ namespace UFX.Orleans.SignalRBackplane.Tests
             
             // Act
             await grain.UnsubscribeAsync(observer);
+
+            A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), null)).MustNotHaveHappened();
+
+            await grain.ReceiveReminder("PingReminderName", new TickStatus());
 
             // Assert
             A.CallTo(() => grainContext.Deactivate(new(DeactivationReasonCode.ApplicationRequested, "DeactivateOnIdle was called."), null)).MustHaveHappenedOnceExactly();
