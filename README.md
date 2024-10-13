@@ -116,21 +116,26 @@ builder.Host
 
 ### Orleans Serialization
 
-With Orleans 7+ the default binary serializer is version tolerant and requires you to be explicit about which types are serializable.
+Orleans v7 [introduced a version-tolerant serializer](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/serialization?pivots=orleans-7-0). The new serializer requires you to be explicit about which types and members are serialized. All types passed between grains and therefore the SignalR Backplane must be serializable.
 Therefore, sending types via SignalR Backplane that are not marked with the [GenerateSerializer] attribute will result in an exception.
-The following code is a way to allow any type to be sent via SignalR BackPlane without the need to mark them with the [GenerateSerializer] attribute while still using the default Orleans serializer for types that are marked with the [GenerateSerializer] attribute to maximise performance.
+If you are unable to use the [GenerateSerializer] attribute on your SignalR types you can use set the **JsonSerializerFallback** option to true to allow any type to be sent via SignalR BackPlane without the need to mark them with the [GenerateSerializer] attribute.
 
 ```cs
-siloBuilder.Services.AddSerializer(serializerBuilder =>
+AddSignalRBackplane(options => options.JsonSerializerFallback = true);
+```
+
+When ***JsonSerializerFallback*** is set to true any types that are not marked with the [GenerateSerializer] attribute will be serialized using the default JSON serializer using the following logic:
+
+```cs
+services.AddSerializer(serializerBuilder =>
 {
     var assemblies = AppDomain.CurrentDomain.GetAssemblies();
     var types = new HashSet<Type>(assemblies.
         SelectMany(a => a.GetTypes()).
         Where(t => t.CustomAttributes.Any(a =>a.AttributeType == typeof(GenerateSerializerAttribute))));
     serializerBuilder.AddJsonSerializer(type => !types.Contains(type));
-});        
+});
 ```
-
 
 ### Using Fully Qualified Grain Types
 Versions greater than v7.2.1 of this library fully qualify the grain type names to avoid grain type conflicts with grains from your own application. 
@@ -209,46 +214,6 @@ public MyService(IExternalSignalrHubContextFactory hubContextFactory)
 ```
 
 Once you have an instance of the hub context, you can use it to send messages to clients. The API is very similar to an `IHubContext`.
-
-## Serialization
-Orleans v7 [introduced a version-tolerant serializer](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/serialization?pivots=orleans-7-0). The new serializer requires you to be explicit about which types and members are serialized. All types passed between grains must be serializable. 
-
-You must mark all serializable types with the `[GenerateSerializer]` attribute. If serializing a class, all properties to be serialized must be marked with the `[Id(<order>)]` attribute. Record properties do not have this requirement when using a primary constructor, as each parameter has an implicit order. You can see an example of a serialized type in the `Shared` project within the `samples` folder.
-* Types passed to `IClientProxy.SendAsync`, such as `Clients.Caller.SendAsync` must be serializable.
-* Types passed to the Send methods on `IExternalSignalrHubContext` from an Orleans Client must be serializable by both the Client and Silo.
-
-### Passing JSON
-Note that if you do not strongly type the input to a hub method then the type of `message` would be `System.Text.Json.JsonElement`, if SignalR is using the default JSON format. The following example shows this scenario:
-
-```cs
-public class ChatHub : Hub
-{
-    public async Task SendToServer(object message)
-    {
-        await Clients.Caller.SendAsync("ReplyToClient", message);
-    }
-}
-```
-
-In this example, `message` is a `JsonElement` and so must be serializable as it is passed directly to `Clients.Caller.SendAsync`.
-
-There are a few options for dealing with this:
-
-* Change the hub method to receive a serializable type.
-* Change the call to `SendAsync` to pass a serializable type, extracting any required data from `message`. The `message` argument can continue to stay as an `object` and therefore a `JsonElement`, or it could be any custom type. This custom type would not need to be serializable unless passed directly to `SendAsync`.
-* Create your own [surrogate serializer](https://learn.microsoft.com/en-gb/dotnet/orleans/host/configuration-guide/serialization?pivots=orleans-7-0#surrogates-for-serializing-foreign-types) for `JsonElement` and pass `message` directly to `SendAsync`.
-* [Enable JSON serialization on the silo](https://learn.microsoft.com/en-gb/dotnet/orleans/host/configuration-guide/serialization-configuration?pivots=orleans-7-0#configure-orleans-to-use-systemtextjson), which will allow `message` to be passed to `SendAsync`.
-
- If following the last option, the following code will enable silo JSON serialization **only** for the `JsonElement` type, which will allow all other types passed around between grains to continue using the new Orleans serializer.
-
-```cs
-siloBuilder.Services.AddSerializer(serializerBuilder =>
-{
-    serializerBuilder.AddJsonSerializer(
-        isSupported: type => type == typeof(JsonElement)
-    );
-});
-```
 
 ## Logging
 All grains implement the `IIncomingGrainCallFilter` interface, which allows a log of all incoming calls to the grains. This is useful for debugging, as the grain type, method name called, address and id of the grain are all logged. This can be enabled by making sure the debug log level is active for the `UFX.Orleans.SignalRBackplane` namespace. One way to do this is to add the following to your `appsettings.json`:

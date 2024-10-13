@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Metadata;
-using Orleans.Runtime;
+using Orleans.Serialization;
 using UFX.Orleans.SignalRBackplane.Grains;
 
 namespace UFX.Orleans.SignalRBackplane;
@@ -11,12 +11,25 @@ public static class SiloBuilderExtensions
     public static ISiloBuilder AddSignalRBackplane(this ISiloBuilder siloBuilder, Action<SignalrOrleansOptions>? optionsAction = null)
     {
         var services = siloBuilder.Services;
-
-        if (optionsAction is not null)
+        var options = new SignalrOrleansOptions();
+        optionsAction?.Invoke(options);
+        services.AddOptions<SignalrOrleansOptions>().Configure(o =>
         {
-            services.Configure(optionsAction);
+            o.GrainCleanupPeriod = options.GrainCleanupPeriod;
+            o.UseFullyQualifiedGrainTypes = options.UseFullyQualifiedGrainTypes;
+            o.JsonSerializerFallback = options.JsonSerializerFallback;
+        });
+        if (options.JsonSerializerFallback)
+        {
+            services.AddSerializer(serializerBuilder =>
+            {
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                var types = new HashSet<Type>(assemblies.
+                    SelectMany(a => a.GetTypes()).
+                    Where(t => t.CustomAttributes.Any(a =>a.AttributeType == typeof(GenerateSerializerAttribute))));
+                serializerBuilder.AddJsonSerializer(type => !types.Contains(type));
+            });
         }
-
         services
             .AddSingleton<IGrainTypeProvider, GrainTypeProvider>()
             .AddSingleton<IGrainInterfaceTypeProvider, GrainInterfaceTypeProvider>()
