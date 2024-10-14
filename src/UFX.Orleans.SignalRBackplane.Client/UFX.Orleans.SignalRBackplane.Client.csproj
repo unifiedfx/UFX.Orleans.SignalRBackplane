@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,5 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\UFX.Orleans.SignalRBackplane.Abstractions\UFX.Orleans.SignalRBackplane.Abstractions.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 </Project>
