@@ -18,11 +18,6 @@
         <PackageTags>Orleans Cloud-Computing Actor-Model Actors Distributed-Systems Real-Time SignalR C# .NET</PackageTags>
     </PropertyGroup>
 
-    <!-- Version for NuGet packages, matching Orleans.Core version -->
-    <PropertyGroup>
-        <Version>10.0.1</Version>
-    </PropertyGroup>
-
     <!-- Common compile parameters -->
     <PropertyGroup>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
