@@ -34,6 +34,9 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnection
     public Task RemoveFromGroupAsync(string groupName)
         => InformObserversAsync(observer => observer.RemoveFromGroupAsync(EntityId, groupName));
 
-    public Task<bool> HasObserversAsync()
-        => Task.FromResult(HasObservers);
+    public async Task<bool> HasObserversAsync()
+    {
+        await PruneObserversAsync();
+        return HasObservers;
+    }
 }

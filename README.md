@@ -291,9 +291,9 @@ If you would like to customise the cleanup period, use the `GrainCleanupPeriod` 
 ```
 
 ## Checking for Active Observers
-The `IConnectionGrain` interface exposes a `HasObserversAsync()` method that returns `true` if the connection grain currently has at least one active observer (i.e. a hub is subscribed to it), or `false` if the grain has no observers.
+The `IConnectionGrain` interface exposes a `HasObserversAsync()` method that actively pings the grain's current observers, prunes any that are no longer reachable, and then returns `true` if at least one live observer remains, or `false` if none do.
 
-This is useful when you need to determine from outside the grain whether a particular connection is still live — for example, after a silo crash where `UnregisterConnectionAsync` was never called. Instead of relying solely on the periodic cleanup ping, you can proactively query a stored connection ID at startup or on-demand:
+This is useful when you need to determine from outside the grain whether a particular connection is still live — for example, after a silo crash where the hub's `OnDisconnectedAsync` never completed and the grain still holds stale observer references. Instead of relying solely on the periodic cleanup ping, you can proactively query a stored connection ID at startup or on-demand:
 
 ```cs
 var connectionGrain = grainFactory.GetGrain<IConnectionGrain>($"myhubs.myhub/{connectionId}");

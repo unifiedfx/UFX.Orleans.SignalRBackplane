@@ -72,11 +72,14 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
     public Task UnsubscribeAsync(IHubLifetimeManagerGrainObserver observer)
         => RunActionAndUpdateStateAsync(() => _observers.Remove(observer));
 
+    protected Task PruneObserversAsync()
+        => RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()), deactivateOnIdle: true);
+
     public async Task ReceiveReminder(string reminderName, TickStatus status)
     {
         if (reminderName == PingReminderName)
         {
-            await RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()), deactivateOnIdle: true);
+            await PruneObserversAsync();
         }
     }
 
