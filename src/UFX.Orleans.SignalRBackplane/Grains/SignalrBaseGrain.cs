@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
 
@@ -23,18 +23,25 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
     /// The EntityId of the grain. This is the connectionId for a connection grain, the userId for a user grain, the group name for a group grain and the hub name for a hub grain.
     /// </summary>
     protected readonly string EntityId;
-    
+
     private const string PingReminderName = nameof(PingReminderName);
 
     private readonly IPersistentState<SubscriptionState> _persistedSubs;
     private readonly IReminderResolver _reminderResolver;
     private readonly ILogger<SignalrBaseGrain> _logger;
     private readonly TimeSpan _grainCleanupPeriod;
-    
+
     private HashSet<IHubLifetimeManagerGrainObserver> _observers = new();
 
+    /// <summary>
+    /// Returns <see langword="true"/> if the in-memory observer set is non-empty.
+    /// Note: the set may still contain stale observer references that have not yet been pruned
+    /// (pruning happens on <see cref="PruneObserversAsync"/> or during notification failures).
+    /// </summary>
+    protected bool HasObservers => _observers.Count > 0;
+
     protected SignalrBaseGrain(
-        IPersistentState<SubscriptionState> persistedSubs, 
+        IPersistentState<SubscriptionState> persistedSubs,
         IGrainContext grainContext,
         IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
@@ -61,21 +68,24 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
         _observers = _persistedSubs.State.Observers;
     }
 
-    public Task SubscribeAsync(IHubLifetimeManagerGrainObserver observer) 
+    public Task SubscribeAsync(IHubLifetimeManagerGrainObserver observer)
         => RunActionAndUpdateStateAsync(() => _observers.Add(observer));
 
     public Task UnsubscribeAsync(IHubLifetimeManagerGrainObserver observer)
         => RunActionAndUpdateStateAsync(() => _observers.Remove(observer));
 
+    protected Task PruneObserversAsync()
+        => RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()), deactivateOnIdle: true);
+
     public async Task ReceiveReminder(string reminderName, TickStatus status)
     {
         if (reminderName == PingReminderName)
         {
-            await RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(observer => observer.PingAsync()), deactivateOnIdle: true);
+            await PruneObserversAsync();
         }
     }
 
-    protected Task InformObserversAsync(Func<IHubLifetimeManagerGrainObserver, Task> notificationCallback) 
+    protected Task InformObserversAsync(Func<IHubLifetimeManagerGrainObserver, Task> notificationCallback)
         => RunActionAndUpdateStateAsync(() => NotifyAllObserversAsync(notificationCallback));
 
     async Task NotifyAllObserversAsync(Func<IHubLifetimeManagerGrainObserver, Task> notification)

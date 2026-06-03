@@ -22,6 +22,7 @@
 - [Design](#design)
   * [Graceful Disconnection](#graceful-disconnection)
   * [Silo Crash](#silo-crash)
+  * [Checking for Active Observers](#checking-for-active-observers)
 - [Architecture](#architecture)
   * [Sending from the within the Orleans cluster](#sending-from-the-within-the-orleans-cluster-1)
   * [Sending from an external client](#sending-from-an-external-client-1)
@@ -288,6 +289,21 @@ If you would like to customise the cleanup period, use the `GrainCleanupPeriod` 
 ```cs
 .AddSignalRBackplane(x => x.GrainCleanupPeriod = TimeSpan.FromHours(1))
 ```
+
+## Checking for Active Observers
+The `IConnectionGrain` interface exposes a `HasObserversAsync()` method that actively pings the grain's current observers, prunes any that are no longer reachable, and then returns `true` if at least one live observer remains, or `false` if none do.
+
+This is useful when you need to determine from outside the grain whether a particular connection is still live — for example, after a silo crash where the hub's `OnDisconnectedAsync` never completed and the grain still holds stale observer references. Instead of relying solely on the periodic cleanup ping, you can proactively query a stored connection ID at startup or on-demand:
+
+```cs
+// The grain key must match the backplane's own key format: "hubname/connectionId"
+// where hubName is typeof(THub).FullName!.ToLower()
+var hubName = typeof(MyHub).FullName!.ToLower(); // e.g. "myapp.hubs.myhub"
+var connectionGrain = grainFactory.GetGrain<IConnectionGrain>($"{hubName}/{connectionId}");
+bool isAlive = await connectionGrain.HasObserversAsync();
+```
+
+If `HasObserversAsync()` returns `false`, the connection is no longer registered with any hub and any locally-held reference to it can be discarded immediately.
 
 # Architecture
 ## Sending from the within the Orleans cluster

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Runtime;
 using UFX.Orleans.SignalRBackplane.Abstractions;
@@ -14,7 +14,8 @@ internal interface IConnectionGrainInternal : ISignalrGrain
 internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnectionGrainInternal
 {
     public ConnectionGrain(
-        [PersistentState(Constants.StateName, Constants.StorageName)] IPersistentState<SubscriptionState> persistedSubs,
+        [PersistentState(Constants.StateName, Constants.StorageName)]
+        IPersistentState<SubscriptionState> persistedSubs,
         IGrainContext grainContext,
         IReminderResolver reminderResolver,
         IOptions<SignalrOrleansOptions> options,
@@ -24,7 +25,7 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnection
     {
     }
 
-    public Task SendConnectionAsync(string methodName, object?[] args) 
+    public Task SendConnectionAsync(string methodName, object?[] args)
         => InformObserversAsync(observer => observer.SendConnectionAsync(EntityId, methodName, args));
 
     public Task AddToGroupAsync(string groupName)
@@ -32,4 +33,10 @@ internal class ConnectionGrain : SignalrBaseGrain, IConnectionGrain, IConnection
 
     public Task RemoveFromGroupAsync(string groupName)
         => InformObserversAsync(observer => observer.RemoveFromGroupAsync(EntityId, groupName));
+
+    public async Task<bool> HasObserversAsync()
+    {
+        await PruneObserversAsync();
+        return HasObservers;
+    }
 }
