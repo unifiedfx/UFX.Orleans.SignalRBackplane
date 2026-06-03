@@ -296,7 +296,10 @@ The `IConnectionGrain` interface exposes a `HasObserversAsync()` method that act
 This is useful when you need to determine from outside the grain whether a particular connection is still live — for example, after a silo crash where the hub's `OnDisconnectedAsync` never completed and the grain still holds stale observer references. Instead of relying solely on the periodic cleanup ping, you can proactively query a stored connection ID at startup or on-demand:
 
 ```cs
-var connectionGrain = grainFactory.GetGrain<IConnectionGrain>($"myhubs.myhub/{connectionId}");
+// The grain key must match the backplane's own key format: "hubname/connectionId"
+// where hubName is typeof(THub).FullName!.ToLower()
+var hubName = typeof(MyHub).FullName!.ToLower(); // e.g. "myapp.hubs.myhub"
+var connectionGrain = grainFactory.GetGrain<IConnectionGrain>($"{hubName}/{connectionId}");
 bool isAlive = await connectionGrain.HasObserversAsync();
 ```
 

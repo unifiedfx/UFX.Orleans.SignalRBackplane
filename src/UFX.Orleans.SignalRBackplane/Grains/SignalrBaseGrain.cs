@@ -34,7 +34,9 @@ internal abstract class SignalrBaseGrain : IGrainBase, ISignalrGrain, IRemindabl
     private HashSet<IHubLifetimeManagerGrainObserver> _observers = new();
 
     /// <summary>
-    /// Returns <see langword="true"/> if this grain currently has at least one live observer.
+    /// Returns <see langword="true"/> if the in-memory observer set is non-empty.
+    /// Note: the set may still contain stale observer references that have not yet been pruned
+    /// (pruning happens on <see cref="PruneObserversAsync"/> or during notification failures).
     /// </summary>
     protected bool HasObservers => _observers.Count > 0;
 
