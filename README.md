@@ -22,6 +22,7 @@
 - [Design](#design)
   * [Graceful Disconnection](#graceful-disconnection)
   * [Silo Crash](#silo-crash)
+  * [Checking for Active Observers](#checking-for-active-observers)
 - [Architecture](#architecture)
   * [Sending from the within the Orleans cluster](#sending-from-the-within-the-orleans-cluster-1)
   * [Sending from an external client](#sending-from-an-external-client-1)
@@ -288,6 +289,18 @@ If you would like to customise the cleanup period, use the `GrainCleanupPeriod` 
 ```cs
 .AddSignalRBackplane(x => x.GrainCleanupPeriod = TimeSpan.FromHours(1))
 ```
+
+## Checking for Active Observers
+The `IConnectionGrain` interface exposes a `HasObserversAsync()` method that returns `true` if the connection grain currently has at least one active observer (i.e. a hub is subscribed to it), or `false` if the grain has no observers.
+
+This is useful when you need to determine from outside the grain whether a particular connection is still live — for example, after a silo crash where `UnregisterConnectionAsync` was never called. Instead of relying solely on the periodic cleanup ping, you can proactively query a stored connection ID at startup or on-demand:
+
+```cs
+var connectionGrain = grainFactory.GetGrain<IConnectionGrain>($"myhubs.myhub/{connectionId}");
+bool isAlive = await connectionGrain.HasObserversAsync();
+```
+
+If `HasObserversAsync()` returns `false`, the connection is no longer registered with any hub and any locally-held reference to it can be discarded immediately.
 
 # Architecture
 ## Sending from the within the Orleans cluster
